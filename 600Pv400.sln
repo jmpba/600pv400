@@ -1,0 +1,35 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34525.116
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "600Pv400", "600Pv400.vcxproj", "{EB301001-6452-45D6-BDF3-789D129A9B07}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM = Debug|ARM
+		Debug|ARM64 = Debug|ARM64
+		Release|ARM = Release|ARM
+		Release|ARM64 = Release|ARM64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Debug|ARM.ActiveCfg = Debug|ARM
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Debug|ARM.Build.0 = Debug|ARM
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Debug|ARM.Deploy.0 = Debug|ARM
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Debug|ARM64.Build.0 = Debug|ARM64
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Release|ARM.ActiveCfg = Release|ARM
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Release|ARM.Build.0 = Release|ARM
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Release|ARM.Deploy.0 = Release|ARM
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Release|ARM64.ActiveCfg = Release|ARM64
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Release|ARM64.Build.0 = Release|ARM64
+		{EB301001-6452-45D6-BDF3-789D129A9B07}.Release|ARM64.Deploy.0 = Release|ARM64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1EF29B0E-A43E-4835-958F-1A8D7FA0DBC5}
+	EndGlobalSection
+EndGlobal

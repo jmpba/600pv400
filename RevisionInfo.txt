@@ -1,0 +1,11 @@
+600P version 3.xx 
+
+3.00 - rolled out to all TP devices 11/10/19
+
+3.01 - fixed sensor 2 tdf/tdfa problem. fixed time zone reporting issue. 14/10/19
+
+3.02 - 
+
+3.10 - added auto clock updating
+
+4.00 - MQTT
