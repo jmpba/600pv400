@@ -36,7 +36,8 @@ void HL7650Class::init()
 	HL7650.Auth = NONE;
 
 	HL7650.remoteTCPport = 1883;
-	snprintf(HL7650.remoteserver, 17, "broker.rayven.io");
+	//changed the remote broker to kaaiot - jm 28.07.26
+	snprintf(HL7650.remoteserver, 17, "mqtt.next.kaaiot.com");
 
 	modem_powerON();
 }
