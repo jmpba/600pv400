@@ -16,12 +16,17 @@ void MQTTClass::init()
 	sprintf(MQTT_USERNAME, "%s", "PBA");
 	
 	//uint32_t sn = PCBserialno;
-	//sprintf(MQTT_CLIENT_ID, "%lu", PCBserialno);
+	// sprintf(MQTT_CLIENT_ID, "%lu", PCBserialno);
 	sprintf(MQTT_CLIENT_ID, "%s", "600P_TEST");
 
 	//char topic[] = "v1/devices/me/rpc/request/+";
-	sprintf(MQTT_TOPIC, "%s", "5123b3bb66990ea1463fb5a4147065d461a7");
+	// sprintf(MQTT_TOPIC, "%s", "5123b3bb66990ea1463fb5a4147065d461a7");
+	//KaaIoT topic: sprintf(MQTT_TOPIC, "%s", kp1/{app_version_name}/{extension_instance_name}/{endpoint_token}/{resource_path}[/{request_id}]);
+	sprintf(MQTT_TOPIC, "%s", "kp1/d6eq12hducs7395o9ng-v1/dcx/RE10gnf7ZE/json/1");
+
+
 }			                 //5123b3bb66990ea1463fb5a4147065d461a7
+
 
 /**
 *   \brief Fill passed in buffer with a valid mqtt connect message
@@ -54,8 +59,9 @@ int MQTTClass::get_mqtt_connect_msg(char* connect_msg_buff, int buff_size) {
 
 	uint8_t protocol_version = MQTT_VERSION;
 	body_index += sprintf(&body[body_index], "%c", (char)protocol_version);
-
-	body[body_index++] = USER_NAME_SET | CLEAN_SESSION; //SET FLAGS HERE
+//changed to comply with kaaIoT protocols
+	// body[body_index++] = USER_NAME_SET | CLEAN_SESSION; //SET FLAGS HERE
+	body[body_index++] = CLEAN_SESSION; //SET FLAGS HERE
 
 	uint16_t keep_alive = MQTT_KEEP_ALIVE;
 	uint16_t_to_two_chars(keep_alive, &temp_upper_byte, &temp_lower_byte);
@@ -65,9 +71,10 @@ int MQTTClass::get_mqtt_connect_msg(char* connect_msg_buff, int buff_size) {
 	uint16_t_to_two_chars(client_id_len, &temp_upper_byte, &temp_lower_byte);
 	body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_CLIENT_ID);
 	//printf("MQTT USERNAME: %s\r\n", MQTT_USERNAME);
-	uint16_t username_len = strlen(MQTT_USERNAME);
-	uint16_t_to_two_chars(username_len, &temp_upper_byte, &temp_lower_byte);
-	body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_USERNAME);
+	//commented out to comply with kaaIoT protocols
+	// uint16_t username_len = strlen(MQTT_USERNAME);
+	// uint16_t_to_two_chars(username_len, &temp_upper_byte, &temp_lower_byte);
+	// body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_USERNAME);
 
 	// Now we have the message len, we can fill it in (in the header)
 	connect_msg_buff[1] = (char)body_index;
@@ -658,4 +665,46 @@ uint8_t MQTTClass::queue_isFull() {
 uint16_t MQTTClass::queue_size() {
 
 	return send_queue.itemCount;
+}
+//Heartbeat reading current dpt 145 values regardless if they have changed or not. This is to ensure that the MQTT server has the most up to date values at all times.
+
+/*
+void MQTTClass::queue_MQTT_TIMED_update(void) {
+    queue_MQTT_update(sensor1.T,    "ta");
+    queue_MQTT_update(sensor1.Tdf,  "td");
+    queue_MQTT_update(sensor1.Tdfa, "tf");
+    queue_MQTT_update(sensor1.H2O,  "h1");
+    queue_MQTT_update(sensor1.P,    "p1");
+    queue_MQTT_update(sensor1.Rhoo, "r1");
+    queue_MQTT_update(sensor2.T,    "tb");
+    queue_MQTT_update(sensor2.P,    "p2");
+    queue_MQTT_update(sensor3.T,    "tc");
+    queue_MQTT_update(sensor3.P,    "p3");
+}
+*/
+void MQTTClass::queue_MQTT_TIMED_update(void){
+	//SENSOR 1
+	queue_MQTT_update(sensor1.T,  "ta");
+	queue_MQTT_update(sensor1.Tdf,  "td");
+	queue_MQTT_update(sensor1.Tdfa,  "tf");
+	queue_MQTT_update(sensor1.H2O,  "h1");
+	queue_MQTT_update(sensor1.P,  "p1");
+	queue_MQTT_update(sensor1.Rhoo,  "r1");
+	queue_MQTT_update(sensor1.Pnorm,  "pn");
+	//SENSOR 2 
+	queue_MQTT_update(sensor2.T, "tb"); 
+	queue_MQTT_update(sensor2.Tdf, "td"); 
+	queue_MQTT_update(sensor2.Tdfa, "tf");
+	queue_MQTT_update(sensor2.H2O,  "h2");
+	queue_MQTT_update(sensor2.P,  "p2");
+	queue_MQTT_update(sensor2.Rhoo,  "r2");
+	queue_MQTT_update(sensor2.Pnorm,  "pn");
+	//SENSOR 3
+	queue_MQTT_update(sensor3.T, "tc");
+	queue_MQTT_update(sensor3.Tdf, "td");
+	queue_MQTT_update(sensor3.Tdfa, "tf");
+	queue_MQTT_update(sensor3.H2O,  "h3");
+	queue_MQTT_update(sensor3.P,  "p3");
+	queue_MQTT_update(sensor3.Rhoo,  "r3");
+	queue_MQTT_update(sensor3.Pnorm,  "pn");
 }
