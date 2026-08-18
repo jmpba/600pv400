@@ -37,7 +37,7 @@ void HL7650Class::init()
 
 	HL7650.remoteTCPport = 1883;
 	//changed the remote broker to kaaiot - jm 28.07.26
-	snprintf(HL7650.remoteserver, 17, "mqtt.next.kaaiot.com");
+	snprintf(HL7650.remoteserver, 32, "mqtt.next.kaaiot.com");
 
 	modem_powerON();
 }
@@ -421,6 +421,8 @@ void HL7650Class::processDATA() {
 
 		if (debugEN == 1) {
 			//uint32_t PCNTER = recv_count + 14;
+			DEBUG.print(F('>>response: '));
+			DEBUG.println(Modem_buffer);
 
 			strcat(Modem_buffer, "\r\n********************************\r\n");
 			DEBUG.println(Modem_buffer);

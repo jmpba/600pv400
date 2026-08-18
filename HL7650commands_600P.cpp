@@ -1212,7 +1212,8 @@ void HL7650commandClass::process(void)
 			modemUART.flush();
 
 			if (debugEN == 1)
-			{
+			{	
+				DEBUG.print(F('>>cmd: '));
 				DEBUG.println();
 				DEBUG.println(cmd);
 				DEBUG.println();
