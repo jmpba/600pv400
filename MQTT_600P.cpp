@@ -13,7 +13,7 @@ void MQTTClass::init()
 {
 
 	//sprintf(MQTT_USERNAME, "%s", "a62c724c-8bfe-13ac");
-	sprintf(MQTT_USERNAME, "%s", "PBA");
+	sprintf(MQTT_USERNAME, "%s", "RElOgfn7ZE");   // or the real Kaa username/token value
 	
 	//uint32_t sn = PCBserialno;
 	// sprintf(MQTT_CLIENT_ID, "%lu", PCBserialno);
@@ -22,7 +22,7 @@ void MQTTClass::init()
 	//char topic[] = "v1/devices/me/rpc/request/+";
 	// sprintf(MQTT_TOPIC, "%s", "5123b3bb66990ea1463fb5a4147065d461a7");
 	//KaaIoT topic: sprintf(MQTT_TOPIC, "%s", kp1/{app_version_name}/{extension_instance_name}/{endpoint_token}/{resource_path}[/{request_id}]);
-	sprintf(MQTT_TOPIC, "%s", "kp1/d6eq12hducs7395o9ng-v1/dcx/RE10gnf7ZE/json/1");
+	sprintf(MQTT_TOPIC, "%s", "kp1/d6eaql2hducs7395o9ng-v1/dcx/RElOgfn7ZE/json/1");
 
 
 }			                 //5123b3bb66990ea1463fb5a4147065d461a7
@@ -70,11 +70,11 @@ int MQTTClass::get_mqtt_connect_msg(char* connect_msg_buff, int buff_size) {
 	uint16_t client_id_len = strlen(MQTT_CLIENT_ID);
 	uint16_t_to_two_chars(client_id_len, &temp_upper_byte, &temp_lower_byte);
 	body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_CLIENT_ID);
-	//printf("MQTT USERNAME: %s\r\n", MQTT_USERNAME);
-	//commented out to comply with kaaIoT protocols
-	// uint16_t username_len = strlen(MQTT_USERNAME);
-	// uint16_t_to_two_chars(username_len, &temp_upper_byte, &temp_lower_byte);
-	// body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_USERNAME);
+	printf("MQTT USERNAME: %s\r\n", MQTT_USERNAME);
+	// commented out to comply with kaaIoT protocols
+	uint16_t username_len = strlen(MQTT_USERNAME);
+	uint16_t_to_two_chars(username_len, &temp_upper_byte, &temp_lower_byte);
+	body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_USERNAME);
 
 	// Now we have the message len, we can fill it in (in the header)
 	connect_msg_buff[1] = (char)body_index;
@@ -540,7 +540,7 @@ void MQTTClass::queue_MQTT_update(float data, const char* data_name) { //this qu
 
 	if ((send_queue.front == send_queue.rear) && send_queue.itemCount > 1) { //bump the start of the queue up one as oldest values will be overwritten by rollover
 		send_queue.front++;
-		if (send_queue.front == QUEUE_SIZE) { send_queue.front = 0; } //return rear of queue to start
+		if (send_queue.front == (QUEUE_SIZE-1)) { send_queue.front = 0; } //return rear of queue to start
 	}
 
 	uint32_t address = 0;
