@@ -421,7 +421,7 @@ void HL7650Class::processDATA() {
 
 		if (debugEN == 1) {
 			//uint32_t PCNTER = recv_count + 14;
-			DEBUG.print(F('>>response: '));
+			DEBUG.print(F('>'));
 			DEBUG.println(Modem_buffer);
 
 			strcat(Modem_buffer, "\r\n********************************\r\n");

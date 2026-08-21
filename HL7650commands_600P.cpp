@@ -20,14 +20,34 @@ void HL7650commandClass::process(void)
 		{
 			if (debugEN == 1)
 			{
-				DEBUG.print(F("MODEM RESPONSE TIMEOUT\r\n"));
+
+				if (debugEN == 1)
+				{
+					// added to help debug modem response timeout issues 20.08 - JM
+					DEBUG.println(F("MODEM RESPONSE TIMEOUT"));
+
+					DEBUG.print(F("MCS="));
+					DEBUG.println(HL7650.ModemCommandStep);
+
+					DEBUG.print(F("response="));
+					DEBUG.println(HL7650.modemresponsereceived);
+
+					DEBUG.print(F("ready="));
+					DEBUG.println(HL7650.modemreadyfornextcommand);
+
+					DEBUG.print(F("tcp_session="));
+					DEBUG.println(MQTT.mqtt_tcp_session_id);
+
+					DEBUG.print(F("tcp_data="));
+					DEBUG.println(HL7650.tcp_dataavailable);
+				}
 			}
 
 			if (HL7650.modem_initial_response_seen == 0)
 			{ // initiate URC report setting change if modem has not been configured for this.
 				HL7650.ModemCommandStep = 1;
 				HL7650.modem_response_timeout = millis(); // reset timeout counter
-				// modem_initial_response_seen = 1;
+														  // modem_initial_response_seen = 1;
 			}
 
 			HL7650.modemreadyfornextcommand = 1;
@@ -69,7 +89,7 @@ void HL7650commandClass::process(void)
 
 		switch (HL7650.ModemCommandStep)
 		{ // MODEM COMMANDS. SWITCH USED TO ALLOW PORCESSOR TO CARRY ON WITH OTHER TASKS WHILE WAITING FOR MODEM TO RESPOND.
-			// COMMANDS ARE IN BLOCKS OF 10. IE FIRST COMMAND STARTS AT 10. THE NEXT 20. NUMBERS IN BETWEEN CAN BE USED TO CHANGE SETTINGS.
+		  // COMMANDS ARE IN BLOCKS OF 10. IE FIRST COMMAND STARTS AT 10. THE NEXT 20. NUMBERS IN BETWEEN CAN BE USED TO CHANGE SETTINGS.
 
 		case ATK3: // config check and URC enable %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -748,8 +768,9 @@ void HL7650commandClass::process(void)
 				MQTT.response_expected = true;
 				sendcmd(HL7650.modem_send_buff);
 			}
-//COMFIRM THE RESPONSE IS A CONACK AND RETURN CODE IS ACCEPTED BEFORE PROCEEDING TO NEXT STEP - JM 28.7
-			if (HL7650.modemresponsereceived == 101){
+			// COMFIRM THE RESPONSE IS A CONACK AND RETURN CODE IS ACCEPTED BEFORE PROCEEDING TO NEXT STEP - JM 28.7
+			if (HL7650.modemresponsereceived == 101)
+			{
 				if (response.ack_type == CONACK && response.return_code == ACCEPTED)
 				{
 					if (MQTT.queue_isEmpty() == 0)
@@ -762,516 +783,515 @@ void HL7650commandClass::process(void)
 					}
 				}
 			}
-			
-				
-					break;
 
-					/*		case 210: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			break;
 
-								if (response.ack_type == CONACK && response.return_code == ACCEPTED) {
-									if (debugEN == 1) { DEBUG.print(F("MCS: "));DEBUG.println(HL7650.ModemCommandStep); }
-									if (debugEN == 1) { DEBUG.print(F("MQTT connect OK. Sending subscribe message\r\n")); }
-									printMQTTresponse();
+			/*		case 210: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-									//char topic[] = "v1/devices/me/rpc/request/+";
-									MQTT.message_id++;
-									//msglen = MQTT.get_mqtt_subscribe_message(MQTT.send_buff, buffer_size, topic, 0, MQTT.message_id);
-									msglen = MQTT.get_mqtt_subscribe_message(MQTT.send_buff, buffer_size, MQTT.MQTT_TOPIC, 0, MQTT.message_id);
+						if (response.ack_type == CONACK && response.return_code == ACCEPTED) {
+							if (debugEN == 1) { DEBUG.print(F("MCS: "));DEBUG.println(HL7650.ModemCommandStep); }
+							if (debugEN == 1) { DEBUG.print(F("MQTT connect OK. Sending subscribe message\r\n")); }
+							printMQTTresponse();
 
-									//if (debugEN == 1) {
-									//	uint16_t gg = 0;
-										//DEBUG.println(MQTT.send_buff);
-										//while (gg < msglen) {
-										//	DEBUG.print(MQTT.send_buff[gg], HEX);
-										//	DEBUG.print(F(" "));
-										//	gg++;
-										//}
-										//DEBUG.println();
-									//}
-									memcpy(&MQTT.send_buff[msglen], HL7650.MODEM_EOF_PATTERN, strlen(HL7650.MODEM_EOF_PATTERN));
-									cmdlen = sprintf(HL7650.modem_send_buff, "AT+KTCPSND=%d,%d", MQTT.mqtt_tcp_session_id, msglen);
+							//char topic[] = "v1/devices/me/rpc/request/+";
+							MQTT.message_id++;
+							//msglen = MQTT.get_mqtt_subscribe_message(MQTT.send_buff, buffer_size, topic, 0, MQTT.message_id);
+							msglen = MQTT.get_mqtt_subscribe_message(MQTT.send_buff, buffer_size, MQTT.MQTT_TOPIC, 0, MQTT.message_id);
 
-									sendcmd(HL7650.modem_send_buff);
-									msglen += 16; //ADD SIZE OF EOF MESSAGE
+							//if (debugEN == 1) {
+							//	uint16_t gg = 0;
+								//DEBUG.println(MQTT.send_buff);
+								//while (gg < msglen) {
+								//	DEBUG.print(MQTT.send_buff[gg], HEX);
+								//	DEBUG.print(F(" "));
+								//	gg++;
+								//}
+								//DEBUG.println();
+							//}
+							memcpy(&MQTT.send_buff[msglen], HL7650.MODEM_EOF_PATTERN, strlen(HL7650.MODEM_EOF_PATTERN));
+							cmdlen = sprintf(HL7650.modem_send_buff, "AT+KTCPSND=%d,%d", MQTT.mqtt_tcp_session_id, msglen);
 
-									MQTT.published_ID = MQTT.message_id;
+							sendcmd(HL7650.modem_send_buff);
+							msglen += 16; //ADD SIZE OF EOF MESSAGE
 
-									HL7650.ModemCommandStep++;
-									if (debugEN == 1) { DEBUG.print(F("MCS: "));DEBUG.println(HL7650.ModemCommandStep); }
-								}
-								break;
+							MQTT.published_ID = MQTT.message_id;
 
-								break;
-
-							case 220: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-								senddata((uint8_t*)MQTT.send_buff, msglen);
-								HL7650.ModemCommandStep++;
-								if (debugEN == 1) { DEBUG.print(F("MCS: "));DEBUG.println(HL7650.ModemCommandStep); }
-								break;
-
-							case 230: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-								cmdlen = sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
-								sendcmd(HL7650.modem_send_buff);
-								MQTT.response_expected = true;
-								HL7650.ModemCommandStep++;
-								if (debugEN == 1) { DEBUG.print(F("MCS: "));DEBUG.println(HL7650.ModemCommandStep); }
-								break;
-
-					*/
-				case ATKCGPADDR: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						sendcmd("AT+KCGPADDR");
-					}
-
-					if (HL7650.modemresponsereceived == 1)
-					{
-						HL7650command.complete(ATCSQ);
-					}
-
-					break;
-
-				case ATCSQ: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						sendcmd("AT+CSQ");
-					}
-
-					if (HL7650.modemresponsereceived == 1)
-					{
-						HL7650command.complete(ATKBND);
-					}
-
-					break;
-
-				case ATKBND: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						sendcmd("AT+KBND?");
-					}
-
-					if (HL7650.modemresponsereceived == 1)
-					{
-						HL7650command.complete(MQTTpublish);
-					}
-
-					break;
-
-				case MQTTpublish: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if ((response.ack_type == PUBACK || response.ack_type == CONACK || response.ack_type == SUBACK) && response.return_code == ACCEPTED && MQTT.queue_isEmpty() == 0 && HL7650.modemreadyfornextcommand == 1)
-					{
-
-						if (debugEN == 1)
-						{
-							DEBUG.print(F("MQTT connect OK. Publishing...\r\n"));
+							HL7650.ModemCommandStep++;
+							if (debugEN == 1) { DEBUG.print(F("MCS: "));DEBUG.println(HL7650.ModemCommandStep); }
 						}
-						printMQTTresponse();
+						break;
 
-						char msg_payload_buf[Modem_buffer_size] = {'\0'};
-						char recovered_name[3] = {'\0'};
+						break;
 
-						snprintf(msg_payload_buf, 50, "{\"deviceID\":\"%s\",\"ts\":\"%lu\"", MQTT.MQTT_CLIENT_ID, DS1338.epoch);
+					case 220: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-						while (MQTT.queue_size() > 0)
-						{
+						senddata((uint8_t*)MQTT.send_buff, msglen);
+						HL7650.ModemCommandStep++;
+						if (debugEN == 1) { DEBUG.print(F("MCS: "));DEBUG.println(HL7650.ModemCommandStep); }
+						break;
 
-							MQTT.dequeue_MQTT_update();
-							if (MQTT.dequeued_data[0] == MQTT_char)
-							{
-								memcpy(recovered_name, MQTT.dequeued_data + 14, 2);
-							}
-							else
-							{
-								memcpy(recovered_name, MQTT.dequeued_data + 6, 2);
-							}
+					case 230: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-							recovered_name[2] = '\0';
-
-							if (MQTT.dequeued_data[0] == MQTT_float)
-							{ // float data type
-								float recovered_float = dataconversion.float32_from_four_uint8(MQTT.dequeued_data[3], MQTT.dequeued_data[2], MQTT.dequeued_data[5], MQTT.dequeued_data[4]);
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%3.1f\"", recovered_name, recovered_float);
-							}
-
-							if (MQTT.dequeued_data[0] == MQTT_uint32_t)
-							{ // uint32_t data type
-								uint32_t recovered_int32t = dataconversion.uint32_t_from_four_uint8(MQTT.dequeued_data[3], MQTT.dequeued_data[2], MQTT.dequeued_data[5], MQTT.dequeued_data[4]);
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%lu\"", recovered_name, recovered_int32t);
-							}
-
-							if (MQTT.dequeued_data[0] == MQTT_uint16_t)
-							{ // uint16_t data type
-								uint16_t recovered_int16t = ((uint16_t)MQTT.dequeued_data[3] << 8) | MQTT.dequeued_data[2];
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%hu\"", recovered_name, recovered_int16t);
-							}
-
-							if (MQTT.dequeued_data[0] == MQTT_uint8_t)
-							{ // uint8_t data type
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%u\"", recovered_name, MQTT.dequeued_data[2]);
-							}
-
-							if (MQTT.dequeued_data[0] == MQTT_int8_t)
-							{ // int8_t data type
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%i\"", recovered_name, (int8_t)MQTT.dequeued_data[2]);
-							}
-
-							if (MQTT.dequeued_data[0] == MQTT_char)
-							{ // char data type
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%s\"", recovered_name, MQTT.dequeued_data + 2);
-							}
-
-							if (strlen(msg_payload_buf) >= Modem_buffer_size - 20)
-							{ // break from loop if there isnt enough room for another data point
-								break;
-							}
-						}
-
-						snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 2, "}");
-						/*
-						if (debugEN == 1) {
-							DEBUG.print(F("message size: "));
-							DEBUG.println(strlen(msg_payload_buf));
-							DEBUG.println(msg_payload_buf);
-						}
-						*/
-						uint8_t duplicate = MQTT.send_attempt == 0 ? 0 : 1;
-						MQTT.send_attempt++;
-						MQTT.message_id++;
-						msglen = MQTT.get_mqtt_pub_message(MQTT.send_buff, Modem_buffer_size, MQTT.MQTT_TOPIC, msg_payload_buf, 1, duplicate, MQTT.message_id);
-						memcpy(&MQTT.send_buff[msglen], HL7650.MODEM_EOF_PATTERN, strlen(HL7650.MODEM_EOF_PATTERN));
-						/*
-						if (debugEN == 1) {
-							DEBUG.print(F("MQTT.send_buff: "));DEBUG.println();
-							uint16_t rew = 0;
-							while (rew < msglen) {
-								if (MQTT.send_buff[rew] < 16) { DEBUG.print(F("0")); }
-								DEBUG.print(MQTT.send_buff[rew], HEX);
-								DEBUG.print(F(" "));
-								rew++;
-							}
-
-							DEBUG.println();
-						}
-						*/
-						// ENDTEXTFORMATTING;
-						sprintf(HL7650.modem_send_buff, "AT+KTCPSND=%d,%d", MQTT.mqtt_tcp_session_id, msglen);
+						cmdlen = sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
 						sendcmd(HL7650.modem_send_buff);
-						msglen += 16; // ADD SIZE OF EOF MESSAGE
-						// printf("Publish message ID: %x\r\n", MQTT.message_id);
-						MQTT.published_ID = MQTT.message_id;
-						// printf("Publish message ID: %x\r\n", MQTT_published_ID);
-						// HL7650.ModemCommandStep++;
-					}
-
-					if (HL7650.modemresponsereceived == 100)
-					{
-						HL7650command.complete(MQTTpublishSEND);
-					}
-
-					break;
-
-				case MQTTpublishSEND: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						senddata((uint8_t *)MQTT.send_buff, msglen);
-					}
-
-					if (HL7650.modemresponsereceived == 1)
-					{
-						HL7650command.complete(MQTTpublishRECV);
-					}
-
-					break;
-
-				case MQTTpublishRECV: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
 						MQTT.response_expected = true;
-						sendcmd(HL7650.modem_send_buff);
-					}
+						HL7650.ModemCommandStep++;
+						if (debugEN == 1) { DEBUG.print(F("MCS: "));DEBUG.println(HL7650.ModemCommandStep); }
+						break;
 
-					if (HL7650.modemresponsereceived == 101)
+			*/
+		case ATKCGPADDR: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sendcmd("AT+KCGPADDR");
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(ATCSQ);
+			}
+
+			break;
+
+		case ATCSQ: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sendcmd("AT+CSQ");
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(ATKBND);
+			}
+
+			break;
+
+		case ATKBND: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sendcmd("AT+KBND?");
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(MQTTpublish);
+			}
+
+			break;
+
+		case MQTTpublish: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if ((response.ack_type == PUBACK || response.ack_type == CONACK || response.ack_type == SUBACK) && response.return_code == ACCEPTED && MQTT.queue_isEmpty() == 0 && HL7650.modemreadyfornextcommand == 1)
+			{
+
+				if (debugEN == 1)
+				{
+					DEBUG.print(F("MQTT connect OK. Publishing...\r\n"));
+				}
+				printMQTTresponse();
+
+				char msg_payload_buf[Modem_buffer_size] = {'\0'};
+				char recovered_name[3] = {'\0'};
+
+				snprintf(msg_payload_buf, 50, "{\"deviceID\":\"%s\",\"ts\":\"%lu\"", MQTT.MQTT_CLIENT_ID, DS1338.epoch);
+
+				while (MQTT.queue_size() > 0)
+				{
+
+					MQTT.dequeue_MQTT_update();
+					if (MQTT.dequeued_data[0] == MQTT_char)
 					{
-						HL7650command.complete(MQTTpublishRESULT);
+						memcpy(recovered_name, MQTT.dequeued_data + 14, 2);
 					}
-
-					break;
-
-				case MQTTpublishRESULT: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (response.ack_type == PUBACK && response.message_id == MQTT.published_ID)
-					{
-						if (debugEN == 1)
-						{
-							DEBUG.println(F("MQTT PUBACK (PUBLISH) OK %"));
-						}
-
-						MQTT.modem_SERVER_timeout = millis(); // RESET TIMER
-						HL7650.set_last_send_time(DS1338.epoch);
-						HL7650command.complete(MQTTpublish);
-					}
-
 					else
 					{
-						if (debugEN == 1)
-						{
-							DEBUG.println(F("MQTT PUBLISH FAILED!!!!"));
-						}
-						HL7650command.complete(MQTTpublish);
+						memcpy(recovered_name, MQTT.dequeued_data + 6, 2);
 					}
 
-					break;
+					recovered_name[2] = '\0';
 
-				case MQTTdisconnect: // +KTCPSND (SEND DATA THROUGH TCP CONNECTION) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						if (debugEN == 1)
-						{
-							DEBUG.print(F("MQTT disconnect...\r\n"));
-						}
-
-						msglen = MQTT.get_mqtt_disconnect_msg(MQTT.send_buff, Modem_buffer_size);
-
-						memcpy(&MQTT.send_buff[msglen], HL7650.MODEM_EOF_PATTERN, strlen(HL7650.MODEM_EOF_PATTERN));
-
-						sprintf(HL7650.modem_send_buff, "AT+KTCPSND=%d,%d", MQTT.mqtt_tcp_session_id, msglen);
-						sendcmd(HL7650.modem_send_buff);
-						msglen += 16; // ADD SIZE OF EOF MESSAGE
+					if (MQTT.dequeued_data[0] == MQTT_float)
+					{ // float data type
+						float recovered_float = dataconversion.float32_from_four_uint8(MQTT.dequeued_data[3], MQTT.dequeued_data[2], MQTT.dequeued_data[5], MQTT.dequeued_data[4]);
+						snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%3.1f\"", recovered_name, recovered_float);
 					}
 
-					if (HL7650.modemresponsereceived == 100)
-					{
-						HL7650command.complete(MQTTdisconnectSEND);
+					if (MQTT.dequeued_data[0] == MQTT_uint32_t)
+					{ // uint32_t data type
+						uint32_t recovered_int32t = dataconversion.uint32_t_from_four_uint8(MQTT.dequeued_data[3], MQTT.dequeued_data[2], MQTT.dequeued_data[5], MQTT.dequeued_data[4]);
+						snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%lu\"", recovered_name, recovered_int32t);
 					}
 
-					break;
-
-				case MQTTdisconnectSEND: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						senddata((uint8_t *)MQTT.send_buff, msglen);
+					if (MQTT.dequeued_data[0] == MQTT_uint16_t)
+					{ // uint16_t data type
+						uint16_t recovered_int16t = ((uint16_t)MQTT.dequeued_data[3] << 8) | MQTT.dequeued_data[2];
+						snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%hu\"", recovered_name, recovered_int16t);
 					}
 
-					if (HL7650.modemresponsereceived == 1)
-					{
-						HL7650command.complete(MQTTdisconnectRECV);
+					if (MQTT.dequeued_data[0] == MQTT_uint8_t)
+					{ // uint8_t data type
+						snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%u\"", recovered_name, MQTT.dequeued_data[2]);
 					}
 
-					break;
-
-				case MQTTdisconnectRECV: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
-						MQTT.response_expected = true;
-						sendcmd(HL7650.modem_send_buff);
+					if (MQTT.dequeued_data[0] == MQTT_int8_t)
+					{ // int8_t data type
+						snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%i\"", recovered_name, (int8_t)MQTT.dequeued_data[2]);
 					}
 
-					if (HL7650.modemresponsereceived == 101)
-					{
-						HL7650command.complete(ATKTCPCFGwait);
+					if (MQTT.dequeued_data[0] == MQTT_char)
+					{ // char data type
+						snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%s\"", recovered_name, MQTT.dequeued_data + 2);
 					}
 
-					break;
-					/*
-							case 310: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-								//WAS 280
-								if (debugEN == 1) { DEBUG.print(F("READY FOR NEXT COMMAND&\r\n")); }
-								//_write_modem_command(&modem,"AT+CPIN?",8);
-								HL7650.ModemCommandStep = 230;
-								break;
-					*/
-				case TCPdisconnect: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						sprintf(HL7650.modem_send_buff, "AT+KTCPSTAT=%d", MQTT.mqtt_tcp_session_id);
-						sendcmd(HL7650.modem_send_buff);
+					if (strlen(msg_payload_buf) >= Modem_buffer_size - 20)
+					{ // break from loop if there isnt enough room for another data point
+						break;
 					}
-
-					if (HL7650.modemresponsereceived == 1 && MQTT.TCPsocketSTATUS == SOCKETCLOSED)
-					{
-						HL7650command.complete(ATKTCPCFG);
-					}
-					if (HL7650.modemresponsereceived == 1 && MQTT.TCPsocketSTATUS == SOCKETREADY)
-					{
-						HL7650command.complete(TCPsocketCLOSE);
-					}
-
-					break;
-
-				case TCPsocketCLOSE: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						sprintf(HL7650.modem_send_buff, "AT+KTCPCLOSE=%d", MQTT.mqtt_tcp_session_id);
-						sendcmd(HL7650.modem_send_buff);
-					}
-
-					if (HL7650.modemresponsereceived == 1)
-					{
-						HL7650command.complete(ATKTCPCFG);
-					}
-
-					break;
-
-				case TCPdelete: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						sprintf(HL7650.modem_send_buff, "AT+KTCPDEL=%d", MQTT.mqtt_tcp_session_id);
-						sendcmd(HL7650.modem_send_buff);
-					}
-
-					if (HL7650.modemresponsereceived == 1)
-					{
-						HL7650command.complete(ATKTCPCFG);
-					} // REVIEW ACTION
-
-					break;
-
-				case POWERoff: // Power off %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-					if (HL7650.modemreadyfornextcommand == 1)
-					{
-						sendcmd("AT+CPOF");
-					}
-
-					if (HL7650.modemresponsereceived == 1)
-					{
-						HL7650command.complete(ATKTCPCFG);
-					} // REVIEW ACTION
-
-					break;
-
-				case CMEERROR:
-
-					HL7650command.complete(TCPdisconnect);
-
-					break;
 				}
+
+				snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 2, "}");
+				/*
+				if (debugEN == 1) {
+					DEBUG.print(F("message size: "));
+					DEBUG.println(strlen(msg_payload_buf));
+					DEBUG.println(msg_payload_buf);
+				}
+				*/
+				uint8_t duplicate = MQTT.send_attempt == 0 ? 0 : 1;
+				MQTT.send_attempt++;
+				MQTT.message_id++;
+				msglen = MQTT.get_mqtt_pub_message(MQTT.send_buff, Modem_buffer_size, MQTT.MQTT_TOPIC, msg_payload_buf, 1, duplicate, MQTT.message_id);
+				memcpy(&MQTT.send_buff[msglen], HL7650.MODEM_EOF_PATTERN, strlen(HL7650.MODEM_EOF_PATTERN));
+				/*
+				if (debugEN == 1) {
+					DEBUG.print(F("MQTT.send_buff: "));DEBUG.println();
+					uint16_t rew = 0;
+					while (rew < msglen) {
+						if (MQTT.send_buff[rew] < 16) { DEBUG.print(F("0")); }
+						DEBUG.print(MQTT.send_buff[rew], HEX);
+						DEBUG.print(F(" "));
+						rew++;
+					}
+
+					DEBUG.println();
+				}
+				*/
+				// ENDTEXTFORMATTING;
+				sprintf(HL7650.modem_send_buff, "AT+KTCPSND=%d,%d", MQTT.mqtt_tcp_session_id, msglen);
+				sendcmd(HL7650.modem_send_buff);
+				msglen += 16; // ADD SIZE OF EOF MESSAGE
+				// printf("Publish message ID: %x\r\n", MQTT.message_id);
+				MQTT.published_ID = MQTT.message_id;
+				// printf("Publish message ID: %x\r\n", MQTT_published_ID);
+				// HL7650.ModemCommandStep++;
+			}
+
+			if (HL7650.modemresponsereceived == 100)
+			{
+				HL7650command.complete(MQTTpublishSEND);
+			}
+
+			break;
+
+		case MQTTpublishSEND: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				senddata((uint8_t *)MQTT.send_buff, msglen);
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(MQTTpublishRECV);
+			}
+
+			break;
+
+		case MQTTpublishRECV: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
+				MQTT.response_expected = true;
+				sendcmd(HL7650.modem_send_buff);
+			}
+
+			if (HL7650.modemresponsereceived == 101)
+			{
+				HL7650command.complete(MQTTpublishRESULT);
+			}
+
+			break;
+
+		case MQTTpublishRESULT: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (response.ack_type == PUBACK && response.message_id == MQTT.published_ID)
+			{
+				if (debugEN == 1)
+				{
+					DEBUG.println(F("MQTT PUBACK (PUBLISH) OK %"));
+				}
+
+				MQTT.modem_SERVER_timeout = millis(); // RESET TIMER
+				HL7650.set_last_send_time(DS1338.epoch);
+				HL7650command.complete(MQTTpublish);
+			}
+
+			else
+			{
+				if (debugEN == 1)
+				{
+					DEBUG.println(F("MQTT PUBLISH FAILED!!!!"));
+				}
+				HL7650command.complete(MQTTpublish);
+			}
+
+			break;
+
+		case MQTTdisconnect: // +KTCPSND (SEND DATA THROUGH TCP CONNECTION) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				if (debugEN == 1)
+				{
+					DEBUG.print(F("MQTT disconnect...\r\n"));
+				}
+
+				msglen = MQTT.get_mqtt_disconnect_msg(MQTT.send_buff, Modem_buffer_size);
+
+				memcpy(&MQTT.send_buff[msglen], HL7650.MODEM_EOF_PATTERN, strlen(HL7650.MODEM_EOF_PATTERN));
+
+				sprintf(HL7650.modem_send_buff, "AT+KTCPSND=%d,%d", MQTT.mqtt_tcp_session_id, msglen);
+				sendcmd(HL7650.modem_send_buff);
+				msglen += 16; // ADD SIZE OF EOF MESSAGE
+			}
+
+			if (HL7650.modemresponsereceived == 100)
+			{
+				HL7650command.complete(MQTTdisconnectSEND);
+			}
+
+			break;
+
+		case MQTTdisconnectSEND: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				senddata((uint8_t *)MQTT.send_buff, msglen);
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(MQTTdisconnectRECV);
+			}
+
+			break;
+
+		case MQTTdisconnectRECV: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
+				MQTT.response_expected = true;
+				sendcmd(HL7650.modem_send_buff);
+			}
+
+			if (HL7650.modemresponsereceived == 101)
+			{
+				HL7650command.complete(ATKTCPCFGwait);
+			}
+
+			break;
+			/*
+					case 310: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+						//WAS 280
+						if (debugEN == 1) { DEBUG.print(F("READY FOR NEXT COMMAND&\r\n")); }
+						//_write_modem_command(&modem,"AT+CPIN?",8);
+						HL7650.ModemCommandStep = 230;
+						break;
+			*/
+		case TCPdisconnect: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sprintf(HL7650.modem_send_buff, "AT+KTCPSTAT=%d", MQTT.mqtt_tcp_session_id);
+				sendcmd(HL7650.modem_send_buff);
+			}
+
+			if (HL7650.modemresponsereceived == 1 && MQTT.TCPsocketSTATUS == SOCKETCLOSED)
+			{
+				HL7650command.complete(ATKTCPCFG);
+			}
+			if (HL7650.modemresponsereceived == 1 && MQTT.TCPsocketSTATUS == SOCKETREADY)
+			{
+				HL7650command.complete(TCPsocketCLOSE);
+			}
+
+			break;
+
+		case TCPsocketCLOSE: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sprintf(HL7650.modem_send_buff, "AT+KTCPCLOSE=%d", MQTT.mqtt_tcp_session_id);
+				sendcmd(HL7650.modem_send_buff);
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(ATKTCPCFG);
+			}
+
+			break;
+
+		case TCPdelete: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sprintf(HL7650.modem_send_buff, "AT+KTCPDEL=%d", MQTT.mqtt_tcp_session_id);
+				sendcmd(HL7650.modem_send_buff);
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(ATKTCPCFG);
+			} // REVIEW ACTION
+
+			break;
+
+		case POWERoff: // Power off %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sendcmd("AT+CPOF");
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(ATKTCPCFG);
+			} // REVIEW ACTION
+
+			break;
+
+		case CMEERROR:
+
+			HL7650command.complete(TCPdisconnect);
+
+			break;
 		}
 	}
+}
 
-	void HL7650commandClass::printMQTTresponse(void)
+void HL7650commandClass::printMQTTresponse(void)
+{
+
+	if (debugEN == 1)
 	{
+
+		if (response.return_code == ACCEPTED)
+		{
+			DEBUG.println(F("MQTT Connection accepted\r\n"));
+		}
+		if (response.return_code == UNACCEPTABLE_PROTOCOL)
+		{
+			DEBUG.println(F("MQTT Connection refused, unacceptable protocol version\r\n"));
+		}
+		if (response.return_code == IDENTIFIER_REJECTED)
+		{
+			DEBUG.println(F("MQTT Connection refused, identifier rejected\r\n"));
+		}
+		if (response.return_code == SERVER_UNAVAILABLE)
+		{
+			DEBUG.println(F("MQTT Connection refused, server unavailable\r\n"));
+		}
+		if (response.return_code == BAD_USER_PASSWORD)
+		{
+			DEBUG.println(F("MQTT Connection refused, bad user name or password\r\n"));
+		}
+		if (response.return_code == NOT_AUTHORIZED)
+		{
+			DEBUG.println(F("MQTT Connection refused, not authorized\r\n"));
+		}
+	}
+}
+
+uint8_t HL7650commandClass::sendcmd(const char *cmd)
+{
+
+	if (digitalRead(MDM_CTS) == LOW && HL7650.modemreadyfornextcommand >= 1)
+	{ // ensure modem is ready for command
+
+		HL7650.modemreadyfornextcommand = 0;
+		HL7650.modemresponsereceived = 0;
+		HL7650.modem_response_timeout = millis(); // reset timeout counter
+
+		modemUART.println(cmd);
+		modemUART.flush();
+
+		if (debugEN == 1)
+		{
+			DEBUG.print(F(">>cmd: "));
+			DEBUG.println();
+			DEBUG.println(cmd);
+			DEBUG.println();
+		}
+
+		return 1;
+	}
+
+	else
+	{
+		return 0;
+	}
+}
+
+void HL7650commandClass::senddata(uint8_t *sendingbuffer, uint16_t message_len)
+{
+
+	if (digitalRead(MDM_CTS) == LOW)
+	{ // ensure modem is ready for command
+
+		HL7650.modemreadyfornextcommand = 0;
+		HL7650.modemresponsereceived = 0;
+		HL7650.modem_response_timeout = millis(); // reset timeout counter
 
 		if (debugEN == 1)
 		{
 
-			if (response.return_code == ACCEPTED)
-			{
-				DEBUG.println(F("MQTT Connection accepted\r\n"));
-			}
-			if (response.return_code == UNACCEPTABLE_PROTOCOL)
-			{
-				DEBUG.println(F("MQTT Connection refused, unacceptable protocol version\r\n"));
-			}
-			if (response.return_code == IDENTIFIER_REJECTED)
-			{
-				DEBUG.println(F("MQTT Connection refused, identifier rejected\r\n"));
-			}
-			if (response.return_code == SERVER_UNAVAILABLE)
-			{
-				DEBUG.println(F("MQTT Connection refused, server unavailable\r\n"));
-			}
-			if (response.return_code == BAD_USER_PASSWORD)
-			{
-				DEBUG.println(F("MQTT Connection refused, bad user name or password\r\n"));
-			}
-			if (response.return_code == NOT_AUTHORIZED)
-			{
-				DEBUG.println(F("MQTT Connection refused, not authorized\r\n"));
-			}
-		}
-	}
-
-	uint8_t HL7650commandClass::sendcmd(const char *cmd)
-	{
-
-		if (digitalRead(MDM_CTS) == LOW && HL7650.modemreadyfornextcommand >= 1)
-		{ // ensure modem is ready for command
-
-			HL7650.modemreadyfornextcommand = 0;
-			HL7650.modemresponsereceived = 0;
-			HL7650.modem_response_timeout = millis(); // reset timeout counter
-
-			modemUART.println(cmd);
-			modemUART.flush();
-
-			if (debugEN == 1)
-			{	
-				DEBUG.print(F('>>cmd: '));
-				DEBUG.println();
-				DEBUG.println(cmd);
-				DEBUG.println();
-			}
-
-			return 1;
+			DEBUG.println();
+			DEBUG.print(F("sending data bytes: ")); // REMOVE 16 BYTES FOR EOF-PATTERN
+			DEBUG.print(message_len - 16);
+			DEBUG.println();
 		}
 
-		else
+		for (unsigned int i = 0; i < message_len; i++)
 		{
-			return 0;
-		}
-	}
-
-	void HL7650commandClass::senddata(uint8_t *sendingbuffer, uint16_t message_len)
-	{
-
-		if (digitalRead(MDM_CTS) == LOW)
-		{ // ensure modem is ready for command
-
-			HL7650.modemreadyfornextcommand = 0;
-			HL7650.modemresponsereceived = 0;
-			HL7650.modem_response_timeout = millis(); // reset timeout counter
-
-			if (debugEN == 1)
-			{
-
-				DEBUG.println();
-				DEBUG.print(F("sending data bytes: ")); // REMOVE 16 BYTES FOR EOF-PATTERN
-				DEBUG.print(message_len - 16);
-				DEBUG.println();
+			/*
+			if (debugEN == 1) {
+				DEBUG.print(sendingbuffer[i], HEX);
+				DEBUG.print(F(" "));
 			}
-
-			for (unsigned int i = 0; i < message_len; i++)
-			{
-				/*
-				if (debugEN == 1) {
-					DEBUG.print(sendingbuffer[i], HEX);
-					DEBUG.print(F(" "));
-				}
-				*/
-				modemUART.write(sendingbuffer[i]);
-			}
-
-			// if (debugEN == 1) { DEBUG.println();DEBUG.println(); }
+			*/
+			modemUART.write(sendingbuffer[i]);
 		}
 
-		// else if (debugEN == 1) { DEBUG.println(F("DATA SEND FAIL. CTS NOT LOW")); }
+		// if (debugEN == 1) { DEBUG.println();DEBUG.println(); }
 	}
 
-	void HL7650commandClass::complete(uint16_t nextstep)
+	// else if (debugEN == 1) { DEBUG.println(F("DATA SEND FAIL. CTS NOT LOW")); }
+}
+
+void HL7650commandClass::complete(uint16_t nextstep)
+{
+
+	HL7650.modemresponsereceived = 0;
+	HL7650.modemreadyfornextcommand = 1;
+	HL7650.ModemCommandStep = nextstep;
+	if (nextstep == MODEMRESET)
 	{
-
-		HL7650.modemresponsereceived = 0;
-		HL7650.modemreadyfornextcommand = 1;
-		HL7650.ModemCommandStep = nextstep;
-		if (nextstep == MODEMRESET)
-		{
-			HL7650.reset_required = 1;
-		} // reboot module after command given
-	}
+		HL7650.reset_required = 1;
+	} // reboot module after command given
+}

@@ -13,11 +13,11 @@ void MQTTClass::init()
 {
 
 	//sprintf(MQTT_USERNAME, "%s", "a62c724c-8bfe-13ac");
-	sprintf(MQTT_USERNAME, "%s", "RElOgfn7ZE");   // or the real Kaa username/token value
+	sprintf(MQTT_USERNAME, "%s", "");   // replace with the real device username/or serial number for the device. This is a placeholder for testing purposes only.
 	
 	//uint32_t sn = PCBserialno;
-	// sprintf(MQTT_CLIENT_ID, "%lu", PCBserialno);
-	sprintf(MQTT_CLIENT_ID, "%s", "600P_TEST");
+	sprintf(MQTT_CLIENT_ID, "%lu", PCBserialno);
+	// sprintf(MQTT_CLIENT_ID, "%s", "600P_TEST");
 
 	//char topic[] = "v1/devices/me/rpc/request/+";
 	// sprintf(MQTT_TOPIC, "%s", "5123b3bb66990ea1463fb5a4147065d461a7");
@@ -70,15 +70,30 @@ int MQTTClass::get_mqtt_connect_msg(char* connect_msg_buff, int buff_size) {
 	uint16_t client_id_len = strlen(MQTT_CLIENT_ID);
 	uint16_t_to_two_chars(client_id_len, &temp_upper_byte, &temp_lower_byte);
 	body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_CLIENT_ID);
-	printf("MQTT USERNAME: %s\r\n", MQTT_USERNAME);
-	// commented out to comply with kaaIoT protocols
-	uint16_t username_len = strlen(MQTT_USERNAME);
-	uint16_t_to_two_chars(username_len, &temp_upper_byte, &temp_lower_byte);
-	body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_USERNAME);
+	// printf("MQTT USERNAME: %s\r\n", MQTT_USERNAME);
+	// // commented out to comply with kaaIoT protocols
+	// uint16_t username_len = strlen(MQTT_USERNAME);
+	// uint16_t_to_two_chars(username_len, &temp_upper_byte, &temp_lower_byte);
+	// body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_USERNAME);
 
 	// Now we have the message len, we can fill it in (in the header)
 	connect_msg_buff[1] = (char)body_index;
 	memcpy(&connect_msg_buff[2], body, (size_t)body_index);
+	//added debug output to show the connect message in hex format
+	if (debugEN == 1)	{
+	DEBUG.print(F("MQTT connect packet byte(x); "));
+	for (int i = 0; i < body_index + 2; i++)
+	{
+		if (connect_msg_buff[i]< 16){DEBUG.print(F("0"));}
+		DEBUG.print(connect_msg_buff[i], HEX);
+		DEBUG.print(F(" "));
+	}
+		DEBUG.println();
+		DEBUG.print(F("MQTT connect packet length: "));
+		DEBUG.println(body_index + 2);
+
+	}
+	
 
 	return body_index + 2;
 }
