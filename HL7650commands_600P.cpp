@@ -16,7 +16,7 @@ void HL7650commandClass::process(void)
 	if (HL7650.modemreadyfornextcommand == 0)
 	{
 
-		if ((millis() - HL7650.modem_response_timeout) >= MODEM_RESPONSE_TIMOUT_MS)
+		if ((millis() - HL7650.modem_response_timeout) >= MODEM_RESPONSE_TIMOUT_MS && HL7650.ModemCommandStep != ATCOPSauto)
 		{
 			if (debugEN == 1)
 			{
@@ -226,14 +226,14 @@ void HL7650commandClass::process(void)
 
 			break;
 
-		case ATCOPS: // COPS SELECTION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		/*case ATCOPS: // COPS SELECTION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 			if (HL7650.modemreadyfornextcommand == 1)
 			{
 				sendcmd("AT+COPS?");
 			} // query COPS
 
-			if (HL7650.modemresponsereceived == 1)
+			if (HL7650.modemresponsereceived == 1 || HL7650.modemresponsereceived == 5)
 			{
 				HL7650command.complete(ATCPIN);
 			}
@@ -242,7 +242,33 @@ void HL7650commandClass::process(void)
 				HL7650command.complete(ATCOPSauto);
 			}
 
-			break;
+			break; */
+			case ATCOPS: // COPS SELECTION
+
+    if (HL7650.modemreadyfornextcommand == 1)
+    {
+        sendcmd("AT+COPS?");
+    }
+
+    if (HL7650.modemresponsereceived == 1)
+    {
+        if (HL7650.networkregistrationstatus == 1 ||
+            HL7650.networkregistrationstatus == 5)
+        {
+            HL7650command.complete(ATCPIN);
+        }
+        else
+        {
+            HL7650command.complete(ATCOPSauto);
+        }
+    }
+
+    if (HL7650.modemresponsereceived == 2)
+    {
+        HL7650command.complete(ATCOPSauto);
+    }
+
+    break;
 
 		case ATCOPSauto:
 
@@ -250,9 +276,9 @@ void HL7650commandClass::process(void)
 			{
 				sendcmd("AT+COPS=0");
 			} // Automatic registration
-			if (HL7650.modemresponsereceived == 1)
+			if (HL7650.modemresponsereceived == 1 || HL7650.modemresponsereceived == 5)
 			{
-				HL7650command.complete(ATCOPS);
+				HL7650command.complete(ATCPIN);
 			}
 
 			break;

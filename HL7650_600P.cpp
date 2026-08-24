@@ -90,7 +90,7 @@ void HL7650Class::modem_reset(void) {
 
 void HL7650Class::read() {
 
-	if (modem_ready == 1 && (networkregistrationstatus == 1 || networkregistrationstatus == 5)) { //only if registered or registered roaming and modem booted.
+	if (modem_ready == 1) { //only if registered or registered roaming and modem booted.
 		if (modemfirstrun == 0) {
 			ModemCommandStep = 1; //initiate config check
 			modemfirstrun++;
