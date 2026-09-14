@@ -1,1 +1,1 @@
-cp "/c/Users/PBA Dev/CODE/600Pv400/.pio/build/due/firmware.bin" /c/temp/firmware.bin && "/c/Program Files (x86)/BOSSA/bossac.exe" --port=COM9 --erase --write --verify --boot=1 --reset /c/temp/firmware.bin
+cp "/c/Users/PBA Dev/CODE/600Pv400/.pio/build/due/firmware.bin" /c/temp/firmware.bin && "/c/Program Files (x86)/BOSSA/bossac.exe" --port=COM5 --erase --write --verify --boot=1 --reset /c/temp/firmware.bin
