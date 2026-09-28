@@ -167,9 +167,6 @@ void HL7650Class::read() {
 
 			}
 			recv_count++;
-
-
-
 		}
 
 		if (DataMode == true) {
@@ -305,27 +302,34 @@ void HL7650Class::processDATA() {
 
 	if (data_count > 0) {
 
-		tcp_dataavailable = 0;
+		static const uint8_t modem_eof[] = "--EOF--Pattern--";
+		uint32_t received_bytes = data_count;
+		if (received_bytes >= sizeof(modem_eof) - 1 &&
+			memcmp(Modem_Data_Buffer + received_bytes - (sizeof(modem_eof) - 1),
+				modem_eof, sizeof(modem_eof) - 1) == 0) {
+			received_bytes -= sizeof(modem_eof) - 1;
+		}
+		if (tcp_dataavailable >= received_bytes) { tcp_dataavailable -= received_bytes; }
+		else { tcp_dataavailable = 0; }
 		if (debugEN == 1) {
 			DEBUG.print(F("MQTT.response_expected: "));
 			DEBUG.println(MQTT.response_expected);
 		}
-		if (MQTT.response_expected == true) {
+		if (MQTT.response_expected == true && received_bytes > 0) {
 
 
-			MQTT.parse_mqtt_response(data_count, (char*)Modem_Data_Buffer);
+			MQTT.parse_mqtt_response(received_bytes, (char*)Modem_Data_Buffer);
 
 			MQTT.response_expected = false;
 
 		}
 
 		if (debugEN == 1) {
-			if (data_count > 16) { data_count -= 16; }//disregard EOF pattern in the buffer
 			DEBUG.print("DATA RECEIVED BYTES ");
-			DEBUG.println(data_count);
+			DEBUG.println(received_bytes);
 
 			uint8_t lengthd = 0;
-			while (lengthd < data_count) {
+			while (lengthd < received_bytes) {
 				if (Modem_Data_Buffer[lengthd] < 16) { DEBUG.print(F("0")); }
 				DEBUG.print(Modem_Data_Buffer[lengthd], HEX);
 				DEBUG.print(F(" "));

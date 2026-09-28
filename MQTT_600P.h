@@ -81,6 +81,11 @@ class MQTTClass
 	 char MQTT_TOPIC[sizeofpage] = { '\0' };
 	 char MQTT_CLIENT_ID[16] = { '\0' };
 	 uint8_t dequeued_data[16] = { '\0' };
+	 uint8_t mqtt_rx_buffer[512] = { 0 };
+	 uint16_t mqtt_rx_length = 0;
+	 char pending_payload[buffer_size] = { '\0' };
+	 bool publish_pending = false;
+	 uint32_t publish_sent_at = 0;
 
 	 void init();
 	 int get_mqtt_connect_msg(char* connect_msg_buff, int buff_size);

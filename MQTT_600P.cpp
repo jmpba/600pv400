@@ -305,64 +305,82 @@ int MQTTClass::random_num(int min, int max) {
 
 void MQTTClass::parse_mqtt_response(int buff_size, char* buff) {
 
-	int message_len = 0;
+	if (buff_size <= 0 || buff == NULL) { return; }
 
-	//printf("\r\n");
-	if (buff[0] == PUBLISH_ACK_PACKET_TYPE) {
-		if (debugEN == 1) {
-			DEBUG.println(F("PUBLISH_ACK_PACKET_TYPE SEEN"));
-		}
-		//if (debugEN == 1) {
-		//	DEBUG.println(F("Got a publish ack"));
-		//}
-		response.ack_type = PUBACK;
-		message_len = (int)buff[1];
-		if (message_len != 2) {
-			//printf("invalid puback format\r\n");
-		}
-		response.message_id = (buff[2] << 8) + buff[3];
-		//return rspnce;
-	}
+	const uint16_t buffer_capacity = sizeof(mqtt_rx_buffer);
+	for (int input_index = 0; input_index < buff_size; input_index++) {
+		if (mqtt_rx_length >= buffer_capacity) { mqtt_rx_length = 0; }
+		mqtt_rx_buffer[mqtt_rx_length++] = (uint8_t)buff[input_index];
 
-	if (buff[0] == CONNACK_PACKET_TYPE) {
-		if (debugEN == 1) {
-			DEBUG.println(F("CONNACK_PACKET_TYPE SEEN"));
-		}
-		response.ack_type = CONACK;
-		message_len = (int)buff[1];
-		if (message_len == 2) {
-			response.return_code = (MQTT_RETURN_Code)buff[3];
-		}
-		//return rspnce;
-	}
+		while (mqtt_rx_length >= 2) {
+			uint8_t header_type = mqtt_rx_buffer[0] >> 4;
+			uint8_t header_flags = mqtt_rx_buffer[0] & 0x0F;
+			bool valid_header = header_type > 0 && header_type < 15;
+			if (header_type == 3) { valid_header = valid_header && ((header_flags >> 1) & 0x03) != 3; }
+			else {
+				uint8_t required_flags = (header_type == 6 || header_type == 8 || header_type == 10) ? 2 : 0;
+				valid_header = valid_header && header_flags == required_flags;
+			}
+			if (!valid_header) {
+				mqtt_rx_length--;
+				memmove(mqtt_rx_buffer, mqtt_rx_buffer + 1, mqtt_rx_length);
+				continue;
+			}
 
-	if (buff[0] == SUBACK_PACKET_TYPE) {
-		if (debugEN == 1) {
-			DEBUG.println(F("SUBACK_PACKET_TYPE SEEN"));
-		}
-		response.ack_type = SUBACK;
-		message_len = (int)buff[1];
-		if (message_len != 3) {
-			if (debugEN == 1) {
-				DEBUG.println(F("invalid SUBACK format"));
+			uint32_t remaining_length = 0;
+			uint32_t multiplier = 1;
+			uint8_t length_bytes = 0;
+			bool length_complete = false;
+
+			for (uint16_t index = 1; index < mqtt_rx_length && length_bytes < 4; index++) {
+				uint8_t encoded = mqtt_rx_buffer[index];
+				remaining_length += (encoded & 0x7F) * multiplier;
+				length_bytes++;
+				if ((encoded & 0x80) == 0) {
+					length_complete = true;
+					break;
+				}
+				multiplier *= 128;
+			}
+
+			if (!length_complete) {
+				if (length_bytes == 4) { mqtt_rx_length = 0; }
+				break;
+			}
+
+			uint32_t packet_length = 1 + length_bytes + remaining_length;
+			if (packet_length > buffer_capacity) {
+				mqtt_rx_length = 0;
+				break;
+			}
+			if (mqtt_rx_length < packet_length) { break; }
+
+			uint8_t packet_type = mqtt_rx_buffer[0] & 0xF0;
+			uint16_t body_offset = 1 + length_bytes;
+			if (packet_type == PUBLISH_ACK_PACKET_TYPE && remaining_length == 2) {
+				response.ack_type = PUBACK;
+				response.message_id = ((uint16_t)mqtt_rx_buffer[body_offset] << 8) |
+					mqtt_rx_buffer[body_offset + 1];
+				if (debugEN == 1) { DEBUG.println(F("PUBLISH_ACK_PACKET_TYPE SEEN")); }
+			} else if (packet_type == CONNACK_PACKET_TYPE && remaining_length == 2) {
+				response.ack_type = CONACK;
+				response.return_code = (MQTT_RETURN_Code)mqtt_rx_buffer[body_offset + 1];
+				if (debugEN == 1) { DEBUG.println(F("CONNACK_PACKET_TYPE SEEN")); }
+			} else if (packet_type == SUBACK_PACKET_TYPE && remaining_length >= 3) {
+				response.ack_type = SUBACK;
+				response.message_id = ((uint16_t)mqtt_rx_buffer[body_offset] << 8) |
+					mqtt_rx_buffer[body_offset + 1];
+				if (debugEN == 1) { DEBUG.println(F("SUBACK_PACKET_TYPE SEEN")); }
+			} else if (packet_type == PUBLISH_PACKET_TYPE && debugEN == 1) {
+				DEBUG.println(F("PUBLISH_PACKET_TYPE SEEN"));
+			}
+
+			mqtt_rx_length -= packet_length;
+			if (mqtt_rx_length > 0) {
+				memmove(mqtt_rx_buffer, mqtt_rx_buffer + packet_length, mqtt_rx_length);
 			}
 		}
-		response.message_id = (buff[2] << 8) + buff[3];
-		if (debugEN == 1) {
-			if (buff[4] == 0x00) { DEBUG.println(F("Success - Maximum QoS 0")); }
-			if (buff[4] == 0x01) { DEBUG.println(F("Success - Maximum QoS 1")); }
-			if (buff[4] == 0x02) { DEBUG.println(F("Success - Maximum QoS 2")); }
-			if (buff[4] == 0x80) { DEBUG.println(F("FAILURE")); }
-		}
 	}
-
-	if (bitRead(buff[0], 7) == 0 && bitRead(buff[0], 6) == 0 && bitRead(buff[0], 5) == 1 && bitRead(buff[0], 4) == 1) {
-		if (debugEN == 1) {
-			DEBUG.println(F("PUBLISH_PACKET_TYPE SEEN"));
-		}
-
-	}
-	//return rspnce;
 }
 
 void MQTTClass::queue_MQTT_update(uint32_t data, const char* data_name) { //this queue only stores names of 2 characters or less
@@ -449,7 +467,25 @@ void MQTTClass::queue_MQTT_update(uint16_t data, const char* data_name) { //this
 
 void MQTTClass::queue_MQTT_update(uint8_t data, const char* data_name) { //this queue only stores names of 2 characters or less
 
-	if (queue_isFull() && debugEN == 1) { DEBUG.println(F("MQTT queue full")); }
+	if (queue_isFull() && debugEN == 1) { DEBUG.println(F("MQTT queue full")); 
+	DEBUG.print(F("MQTT Queue size: "));
+	DEBUG.println(queue_size());
+
+	DEBUG.print(F("MQTT state: "));
+	DEBUG.println(HL7650.ModemCommandStep);
+
+	DEBUG.print(F("ACK type: "));
+	DEBUG.println(response.ack_type);
+
+	DEBUG.print(F("ACK Message ID: "));
+	DEBUG.println(MQTT.published_ID);
+
+	DEBUG.print(F("Modem READY:"));
+	DEBUG.println(HL7650.modemreadyfornextcommand);
+
+	DEBUG.print(F("Modem response: "));
+	DEBUG.println(HL7650.modemresponsereceived);
+	}
 
 	if (send_queue.itemCount == 0) {
 		send_queue.next_id = 1; //reset message identifier if all messages have been sent.

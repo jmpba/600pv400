@@ -717,6 +717,9 @@ void HL7650commandClass::process(void)
 				sendcmd(HL7650.modem_send_buff);
 				msglen += 16;			   // ADD SIZE OF EOF MESSAGE
 				response.ack_type = RESET; // reset MQTT response
+				response.message_id = 0;
+				response.return_code = NOT_AUTHORIZED;
+				MQTT.mqtt_rx_length = 0;
 			}
 
 			if (HL7650.modemresponsereceived == 100)
@@ -742,25 +745,20 @@ void HL7650commandClass::process(void)
 
 		case MQTTconnectRECV: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-			if (HL7650.modemreadyfornextcommand == 1)
+			if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0)
 			{
 				sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
 				MQTT.response_expected = true;
 				sendcmd(HL7650.modem_send_buff);
 			}
 //COMFIRM THE RESPONSE IS A CONACK AND RETURN CODE IS ACCEPTED BEFORE PROCEEDING TO NEXT STEP - JM 28.7
-			if (HL7650.modemresponsereceived == 101){
-				if (response.ack_type == CONACK && response.return_code == ACCEPTED)
-				{
-					if (MQTT.queue_isEmpty() == 0)
-					{
-						HL7650command.complete(MQTTpublish);
-					}
-					else
-					{
-						HL7650command.complete(ATKCGPADDR);
-					}
-				}
+			if (response.ack_type == CONACK && response.return_code == ACCEPTED) {
+				if (MQTT.queue_isEmpty() == 0) { HL7650command.complete(MQTTpublish); }
+				else { HL7650command.complete(ATKCGPADDR); }
+			}
+			else if (HL7650.modemresponsereceived == 101) {
+				HL7650.modemresponsereceived = 0;
+				HL7650.modemreadyfornextcommand = 1;
 			}
 			
 				
@@ -864,7 +862,7 @@ void HL7650commandClass::process(void)
 
 				case MQTTpublish: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-					if ((response.ack_type == PUBACK || response.ack_type == CONACK || response.ack_type == SUBACK) && response.return_code == ACCEPTED && MQTT.queue_isEmpty() == 0 && HL7650.modemreadyfornextcommand == 1)
+					if ((MQTT.publish_pending || MQTT.queue_isEmpty() == 0) && HL7650.modemreadyfornextcommand == 1)
 					{
 
 						if (debugEN == 1)
@@ -873,6 +871,7 @@ void HL7650commandClass::process(void)
 						}
 						printMQTTresponse();
 
+						if (!MQTT.publish_pending) {
 						char msg_payload_buf[Modem_buffer_size] = {'\0'};
 						char recovered_name[3] = {'\0'};
 
@@ -933,6 +932,17 @@ void HL7650commandClass::process(void)
 						}
 
 						snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 2, "}");
+						strncpy(MQTT.pending_payload, msg_payload_buf, sizeof(MQTT.pending_payload) - 1);
+						MQTT.pending_payload[sizeof(MQTT.pending_payload) - 1] = '\0';
+						MQTT.message_id++;
+						MQTT.published_ID = MQTT.message_id;
+						MQTT.publish_pending = true;
+						MQTT.send_attempt = 0;
+						}
+
+						response.ack_type = RESET;
+						response.message_id = 0;
+						response.return_code = NOT_AUTHORIZED;
 						/*
 						if (debugEN == 1) {
 							DEBUG.print(F("message size: "));
@@ -942,8 +952,7 @@ void HL7650commandClass::process(void)
 						*/
 						uint8_t duplicate = MQTT.send_attempt == 0 ? 0 : 1;
 						MQTT.send_attempt++;
-						MQTT.message_id++;
-						msglen = MQTT.get_mqtt_pub_message(MQTT.send_buff, Modem_buffer_size, MQTT.MQTT_TOPIC, msg_payload_buf, 1, duplicate, MQTT.message_id);
+						msglen = MQTT.get_mqtt_pub_message(MQTT.send_buff, Modem_buffer_size, MQTT.MQTT_TOPIC, MQTT.pending_payload, 1, duplicate, MQTT.published_ID);
 						memcpy(&MQTT.send_buff[msglen], HL7650.MODEM_EOF_PATTERN, strlen(HL7650.MODEM_EOF_PATTERN));
 						/*
 						if (debugEN == 1) {
@@ -963,8 +972,8 @@ void HL7650commandClass::process(void)
 						sprintf(HL7650.modem_send_buff, "AT+KTCPSND=%d,%d", MQTT.mqtt_tcp_session_id, msglen);
 						sendcmd(HL7650.modem_send_buff);
 						msglen += 16; // ADD SIZE OF EOF MESSAGE
+												MQTT.publish_sent_at = millis();
 						// printf("Publish message ID: %x\r\n", MQTT.message_id);
-						MQTT.published_ID = MQTT.message_id;
 						// printf("Publish message ID: %x\r\n", MQTT_published_ID);
 						// HL7650.ModemCommandStep++;
 					}
@@ -991,17 +1000,32 @@ void HL7650commandClass::process(void)
 					break;
 
 				case MQTTpublishRECV: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+					if (response.ack_type == PUBACK && response.message_id == MQTT.published_ID)
+					{
+						HL7650command.complete(MQTTpublishRESULT);
+						break;
+					}
+					if ((uint32_t)(millis() - MQTT.publish_sent_at) >= 15000)
+					{
+						response.ack_type = RESET;
+						response.message_id = 0;
+						response.return_code = NOT_AUTHORIZED;
+						HL7650command.complete(MQTTpublish);
+						break;
+					}
 
-					if (HL7650.modemreadyfornextcommand == 1)
+					if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0)
 					{
 						sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
 						MQTT.response_expected = true;
 						sendcmd(HL7650.modem_send_buff);
 					}
 
-					if (HL7650.modemresponsereceived == 101)
+					if (HL7650.modemresponsereceived == 101 &&
+						!(response.ack_type == PUBACK && response.message_id == MQTT.published_ID))
 					{
-						HL7650command.complete(MQTTpublishRESULT);
+						HL7650.modemresponsereceived = 0;
+						HL7650.modemreadyfornextcommand = 1;
 					}
 
 					break;
@@ -1016,6 +1040,8 @@ void HL7650commandClass::process(void)
 						}
 
 						MQTT.modem_SERVER_timeout = millis(); // RESET TIMER
+												MQTT.publish_pending = false;
+												MQTT.send_attempt = 0;
 						HL7650.set_last_send_time(DS1338.epoch);
 						HL7650command.complete(MQTTpublish);
 					}
@@ -1026,6 +1052,9 @@ void HL7650commandClass::process(void)
 						{
 							DEBUG.println(F("MQTT PUBLISH FAILED!!!!"));
 						}
+						response.ack_type = RESET;
+						response.message_id = 0;
+						response.return_code = NOT_AUTHORIZED;
 						HL7650command.complete(MQTTpublish);
 					}
 
