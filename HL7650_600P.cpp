@@ -304,6 +304,7 @@ void HL7650Class::processDATA() {
 
 		static const uint8_t modem_eof[] = "--EOF--Pattern--";
 		uint32_t received_bytes = data_count;
+		uint32_t pending_bytes_before_read = tcp_dataavailable;
 		if (received_bytes >= sizeof(modem_eof) - 1 &&
 			memcmp(Modem_Data_Buffer + received_bytes - (sizeof(modem_eof) - 1),
 				modem_eof, sizeof(modem_eof) - 1) == 0) {
@@ -312,6 +313,14 @@ void HL7650Class::processDATA() {
 		if (tcp_dataavailable >= received_bytes) { tcp_dataavailable -= received_bytes; }
 		else { tcp_dataavailable = 0; }
 		if (debugEN == 1) {
+			DEBUG.print(F("TCP RX state="));
+			DEBUG.print(ModemCommandStep);
+			DEBUG.print(F(" bytes="));
+			DEBUG.print(received_bytes);
+			DEBUG.print(F(" pending-before="));
+			DEBUG.print(pending_bytes_before_read);
+			DEBUG.print(F(" pending-after="));
+			DEBUG.println(tcp_dataavailable);
 			DEBUG.print(F("MQTT.response_expected: "));
 			DEBUG.println(MQTT.response_expected);
 		}

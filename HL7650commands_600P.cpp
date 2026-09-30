@@ -1000,6 +1000,18 @@ void HL7650commandClass::process(void)
 					break;
 
 				case MQTTpublishRECV: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+					if (debugEN == 1 && HL7650.modemresponsereceived == 101) {
+						DEBUG.print(F("Publish receive event: state="));
+						DEBUG.print(HL7650.ModemCommandStep);
+						DEBUG.print(F(" pending TCP bytes="));
+						DEBUG.print(HL7650.tcp_dataavailable);
+						DEBUG.print(F(" ACK type="));
+						DEBUG.print(response.ack_type);
+						DEBUG.print(F(" received ID="));
+						DEBUG.print(response.message_id);
+						DEBUG.print(F(" expected ID="));
+						DEBUG.println(MQTT.published_ID);
+					}
 					if (response.ack_type == PUBACK && response.message_id == MQTT.published_ID)
 					{
 						HL7650command.complete(MQTTpublishRESULT);

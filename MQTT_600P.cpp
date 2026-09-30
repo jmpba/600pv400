@@ -357,11 +357,32 @@ void MQTTClass::parse_mqtt_response(int buff_size, char* buff) {
 
 			uint8_t packet_type = mqtt_rx_buffer[0] & 0xF0;
 			uint16_t body_offset = 1 + length_bytes;
+			if (debugEN == 1) {
+				DEBUG.print(F("MQTT RX FRAME type=0x"));
+				DEBUG.print(mqtt_rx_buffer[0], HEX);
+				DEBUG.print(F(" bytes="));
+				DEBUG.print(packet_length);
+				DEBUG.print(F(" remaining="));
+				DEBUG.println(remaining_length);
+				DEBUG.print(F("MQTT RX RAW: "));
+				for (uint32_t frame_index = 0; frame_index < packet_length; frame_index++) {
+					if (mqtt_rx_buffer[frame_index] < 0x10) { DEBUG.print('0'); }
+					DEBUG.print(mqtt_rx_buffer[frame_index], HEX);
+					DEBUG.print(' ');
+				}
+				DEBUG.println();
+			}
+
 			if (packet_type == PUBLISH_ACK_PACKET_TYPE && remaining_length == 2) {
 				response.ack_type = PUBACK;
 				response.message_id = ((uint16_t)mqtt_rx_buffer[body_offset] << 8) |
 					mqtt_rx_buffer[body_offset + 1];
-				if (debugEN == 1) { DEBUG.println(F("PUBLISH_ACK_PACKET_TYPE SEEN")); }
+				if (debugEN == 1) {
+					DEBUG.print(F("PUBACK received ID="));
+					DEBUG.print(response.message_id);
+					DEBUG.print(F(" expected ID="));
+					DEBUG.println(published_ID);
+				}
 			} else if (packet_type == CONNACK_PACKET_TYPE && remaining_length == 2) {
 				response.ack_type = CONACK;
 				response.return_code = (MQTT_RETURN_Code)mqtt_rx_buffer[body_offset + 1];
