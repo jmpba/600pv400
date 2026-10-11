@@ -952,8 +952,25 @@ void HL7650commandClass::process(void)
 						*/
 						uint8_t duplicate = MQTT.send_attempt == 0 ? 0 : 1;
 						MQTT.send_attempt++;
-						msglen = MQTT.get_mqtt_pub_message(MQTT.send_buff, Modem_buffer_size, MQTT.MQTT_TOPIC, MQTT.pending_payload, 1, duplicate, MQTT.published_ID);
-						memcpy(&MQTT.send_buff[msglen], HL7650.MODEM_EOF_PATTERN, strlen(HL7650.MODEM_EOF_PATTERN));
+						size_t eof_length = strlen(HL7650.MODEM_EOF_PATTERN);
+						int packet_length = MQTT.get_mqtt_pub_message(
+							MQTT.send_buff,
+							sizeof(MQTT.send_buff) - eof_length,
+							MQTT.MQTT_TOPIC,
+							MQTT.pending_payload,
+							1,
+							duplicate,
+							MQTT.published_ID);
+						if (packet_length < 0)
+						{
+							if (debugEN == 1) { DEBUG.println(F("MQTT publish packet exceeds send buffer")); }
+							MQTT.publish_pending = false;
+							MQTT.send_attempt = 0;
+							HL7650command.complete(MQTTpublish);
+							break;
+						}
+						msglen = packet_length;
+						memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 						/*
 						if (debugEN == 1) {
 							DEBUG.print(F("MQTT.send_buff: "));DEBUG.println();

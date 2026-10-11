@@ -71,131 +71,76 @@ int MQTTClass::get_mqtt_connect_msg(char* connect_msg_buff, int buff_size) {
 	uint16_t_to_two_chars(client_id_len, &temp_upper_byte, &temp_lower_byte);
 	body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_CLIENT_ID);
 	printf("MQTT USERNAME: %s\r\n", MQTT_USERNAME);
-	// commented out to comply with kaaIoT protocols
+
 	uint16_t username_len = strlen(MQTT_USERNAME);
 	uint16_t_to_two_chars(username_len, &temp_upper_byte, &temp_lower_byte);
 	body_index += sprintf(&body[body_index], "%c%c%s", temp_upper_byte, temp_lower_byte, MQTT_USERNAME);
 
-	// Now we have the message len, we can fill it in (in the header)
 	connect_msg_buff[1] = (char)body_index;
 	memcpy(&connect_msg_buff[2], body, (size_t)body_index);
-
 	return body_index + 2;
 }
 
-
-/**
-*    \brief Fill buffer with a valid MQTT publish message.
-*
-*   \warning The function relies on strlen for the data length. As a result it is not
-*   safe to send data that is not in a string format.
-*
-*   \warning Continuation bit for the message remaining length field is not implemented. This leaves
-*   only 7 bits for the message length therefore any message longer than 2^7=128 bytes will
-*   fail (ungracefully).
-*
-*   \return Length of message in bytes.
-*/
-int MQTTClass::get_mqtt_pub_message(char* msg_buffer, int buff_size, const char* topic, const char* message, int qos, int duplicate, uint16_t new_message_id) {
-
-	//printf("Getting publish message\r\n");
-	//char body[buffer_size] = { '\0' };
-	char temp_upper_byte = '\0';
-	char temp_lower_byte = '\0';
-	int body_index = 0;
-
-	/* QOS of zero ==> packet id not required ==> differnt format */
-	if (qos == 0) {
-		
-		msg_buffer[body_index++] = PUBLISH_PACKET_TYPE | QOS_ZERO | (duplicate ? DUP_FLAG : 0);
-
-		uint16_t message_len = strlen(topic) + strlen(message) + 2; // two bytes for topic len field.
-		uint16_t message_len_temp = message_len;
-		uint8_t message_count = 0;
-		if (message_len <= 127) { msg_buffer[body_index++] = (char)message_len; }
-
-		if (message_len > 127) { //if message is > 16383 bytes another function needs to be written to add a third byte to the message length!!!!
-
-			while (message_len_temp > 127) {
-				message_count++;
-				message_len_temp -= 127;
-			}
-			body_index++;
-			msg_buffer[body_index] = (char)message_count;
-			body_index--;
-			message_len = message_len % 128;
-			message_len = message_len | 128; //set MSB bit high to indicate the message size is two bytes long ie between 127 and 16383 bytes in length
-			msg_buffer[body_index] = (char)message_len;
-			body_index += 2;
-		}
-
-		/*
-				|  Digits  |                From                 |                   To                  |
-				|----------|-------------------------------------|---------------------------------------|
-				|    1     |  0 (0x00)                           |  127 (0x7F)                           |
-				|	 2     |  128 (0x80, 0x01)                   |  16 383 (0xFF, 0x7F)                  |
-				|    3     |  16 384 (0x80, 0x80, 0x01)          |  2 097 151 (0xFF, 0xFF, 0x7F)	     |
-				|	 4     |  2 097 152 (0x80, 0x80, 0x80, 0x01) |  268 435 455 (0xFF, 0xFF, 0xFF, 0x7F) |
-		*/
-		uint16_t_to_two_chars(strlen(topic), &temp_upper_byte, &temp_lower_byte);
-		body_index += sprintf(&msg_buffer[body_index], "%c%c", temp_upper_byte, temp_lower_byte);
-
-		body_index += sprintf(&msg_buffer[body_index], "%s%s", topic, message);
-
-		//memcpy(&msg_buffer[0], body, body_index);
-
-		return body_index;
-	}
-
-	/* QOS of 1 ==> packet id required */
-	if (qos == 1) {
-
-		msg_buffer[body_index++] = PUBLISH_PACKET_TYPE | QOS_ONE | (duplicate ? DUP_FLAG : 0);
-
-		uint16_t message_len = strlen(topic) + strlen(message) + 4; // two bytes for topic len and for two message id
-		uint16_t message_len_temp = message_len;
-		uint8_t message_count = 0;
-		if (message_len <= 127) { msg_buffer[body_index++] = (char)message_len; }
-
-		if (message_len > 127) { //if message is > 16383 bytes another function needs to be written to add a third byte to the message length!!!!
-
-			while (message_len_temp > 127) {
-				message_count++;
-				message_len_temp -= 127;
-			}
-			body_index++;
-			msg_buffer[body_index] = (char)message_count;
-			body_index--;
-			message_len = message_len % 128;
-			message_len = message_len | 128; //set MSB bit high to indicate the message size is two bytes long ie between 127 and 16383 bytes in length
-			msg_buffer[body_index] = (char)message_len;
-			body_index += 2;
-		}
-
-
-		uint16_t_to_two_chars(strlen(topic), &temp_upper_byte, &temp_lower_byte);
-		body_index += sprintf(&msg_buffer[body_index], "%c%c", temp_upper_byte, temp_lower_byte);
-
-		uint16_t_to_two_chars(new_message_id, &temp_upper_byte, &temp_lower_byte);
-		body_index += sprintf(&msg_buffer[body_index], "%s%c%c%s", topic, temp_upper_byte, temp_lower_byte, message);
-
-		//memcpy(msg_buffer, body, body_index);
-
-		return body_index;
-	}
-
-	if (qos == 2) {
-		//printf("qos 2 not supported!\r\n");
-		return 0;
-	}
-	/*
-		for (int i = 0; i < body_index; i++) {
-			print_byte(msg_buffer[i]);
-		}
+	/**
+	*   \brief Encode an MQTT PUBLISH packet into the provided buffer.
+	*
+	*   \return Packet length, or -1 when the arguments or buffer capacity are invalid.
 	*/
-	return body_index;
+	int MQTTClass::get_mqtt_pub_message(char* msg_buffer, int buff_size, const char* topic, const char* message, int qos, int duplicate, uint16_t new_message_id) {
+		if (msg_buffer == NULL || topic == NULL || message == NULL || buff_size <= 0 || (qos != 0 && qos != 1)) {
+			return -1;
+		}
 
-}
+		size_t topic_length = strlen(topic);
+		size_t payload_length = strlen(message);
+		if (topic_length == 0 || topic_length > UINT16_MAX) {
+			return -1;
+		}
+
+		uint64_t remaining_length_wide = 2 + topic_length + payload_length + (qos == 1 ? 2 : 0);
+		if (remaining_length_wide > 268435455UL) {
+			return -1;
+		}
+
+		uint32_t remaining_length = (uint32_t)remaining_length_wide;
+		uint32_t length_copy = remaining_length;
+		uint8_t remaining_length_bytes = 0;
+		do {
+			remaining_length_bytes++;
+			length_copy >>= 7;
+		} while (length_copy != 0);
+
+		uint32_t packet_length = 1 + remaining_length_bytes + remaining_length;
+		if (packet_length > (uint32_t)buff_size) {
+			return -1;
+		}
+
+		size_t index = 0;
+		uint8_t header = PUBLISH_PACKET_TYPE | (qos == 1 ? QOS_ONE : QOS_ZERO) |
+			(duplicate ? DUP_FLAG : 0);
+		msg_buffer[index++] = (char)header;
+
+		do {
+			uint8_t encoded = (uint8_t)(remaining_length & 0x7F);
+			remaining_length >>= 7;
+			if (remaining_length != 0) { encoded |= 0x80; }
+			msg_buffer[index++] = (char)encoded;
+		} while (remaining_length != 0);
+
+		msg_buffer[index++] = (char)(topic_length >> 8);
+		msg_buffer[index++] = (char)(topic_length & 0xFF);
+		memcpy(msg_buffer + index, topic, topic_length);
+		index += topic_length;
+
+		if (qos == 1) {
+			msg_buffer[index++] = (char)(new_message_id >> 8);
+			msg_buffer[index++] = (char)(new_message_id & 0xFF);
+		}
+
+		memcpy(msg_buffer + index, message, payload_length);
+		index += payload_length;
+		return (int)index;
+	}
 
 int MQTTClass::get_mqtt_subscribe_message(char* msg_buffer, int buff_size, const char* topic, int qos, uint16_t packet_identifier) {
 
