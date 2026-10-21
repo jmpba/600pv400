@@ -395,7 +395,7 @@ void MQTTClass::queue_MQTT_update(uint32_t data, const char* data_name) { //this
 
 void MQTTClass::queue_MQTT_update(uint16_t data, const char* data_name) { //this queue only stores names of 2 characters or less
 
-	if (queue_isFull() && debugEN == 1) { DEBUG.println(F("MQTT queue full")); }
+	if (queue_isFull() && debugEN == 1) { DEBUG.println(F("MQTT ")); }
 
 	if (send_queue.itemCount == 0) {
 		send_queue.next_id = 1; //reset message identifier if all messages have been sent.
@@ -685,28 +685,28 @@ void MQTTClass::queue_MQTT_TIMED_update(void) {
 }
 */
 void MQTTClass::queue_MQTT_TIMED_update(void){
-	//SENSOR 1
-	queue_MQTT_update(sensor1.T,  "ta");
-	queue_MQTT_update(sensor1.Tdf,  "td");
-	queue_MQTT_update(sensor1.Tdfa,  "tf");
-	queue_MQTT_update(sensor1.H2O,  "h1");
-	queue_MQTT_update(sensor1.P,  "p1");
-	queue_MQTT_update(sensor1.Rhoo,  "r1");
-	queue_MQTT_update(sensor1.Pnorm,  "pn");
-	//SENSOR 2 
-	queue_MQTT_update(sensor2.T, "tb"); 
-	queue_MQTT_update(sensor2.Tdf, "td"); 
-	queue_MQTT_update(sensor2.Tdfa, "tf");
-	queue_MQTT_update(sensor2.H2O,  "h2");
-	queue_MQTT_update(sensor2.P,  "p2");
-	queue_MQTT_update(sensor2.Rhoo,  "r2");
-	queue_MQTT_update(sensor2.Pnorm,  "pn");
-	//SENSOR 3
-	queue_MQTT_update(sensor3.T, "tc");
-	queue_MQTT_update(sensor3.Tdf, "td");
-	queue_MQTT_update(sensor3.Tdfa, "tf");
-	queue_MQTT_update(sensor3.H2O,  "h3");
-	queue_MQTT_update(sensor3.P,  "p3");
-	queue_MQTT_update(sensor3.Rhoo,  "r3");
-	queue_MQTT_update(sensor3.Pnorm,  "pn");
+    //SENSOR 1
+    queue_MQTT_update(sensor1.T,    "ta");
+    queue_MQTT_update(sensor1.Tdf,  "td");
+    queue_MQTT_update(sensor1.Tdfa, "tf");
+    queue_MQTT_update(sensor1.H2O,  "h1");
+    queue_MQTT_update(sensor1.P,    "p1");
+    queue_MQTT_update(sensor1.Rhoo, "r1");
+    queue_MQTT_update(sensor1.Pnorm,"pn");
+    //SENSOR 2
+    queue_MQTT_update(sensor2.T,    "tb");
+    queue_MQTT_update(sensor2.Tdf,  "t2");
+    queue_MQTT_update(sensor2.Tdfa, "f2");
+    queue_MQTT_update(sensor2.H2O,  "h2");
+    queue_MQTT_update(sensor2.P,    "p2");
+    queue_MQTT_update(sensor2.Rhoo, "r2");
+    queue_MQTT_update(sensor2.Pnorm,"n2");
+    //SENSOR 3
+    queue_MQTT_update(sensor3.T,    "tc");
+    queue_MQTT_update(sensor3.Tdf,  "t3");
+    queue_MQTT_update(sensor3.Tdfa, "f3");
+    queue_MQTT_update(sensor3.H2O,  "h3");
+    queue_MQTT_update(sensor3.P,    "p3");
+    queue_MQTT_update(sensor3.Rhoo, "r3");
+    queue_MQTT_update(sensor3.Pnorm,"n3");
 }

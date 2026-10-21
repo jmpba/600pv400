@@ -875,6 +875,8 @@ void HL7650commandClass::process(void)
 						char msg_payload_buf[Modem_buffer_size] = {'\0'};
 						char recovered_name[3] = {'\0'};
 
+						DS1338.epoch=DS1338.readRTC(RTC0);
+						
 						snprintf(msg_payload_buf, 50, "{\"deviceID\":\"%s\",\"ts\":\"%lu\"", MQTT.MQTT_CLIENT_ID, DS1338.epoch);
 
 						while (MQTT.queue_size() > 0)
@@ -895,37 +897,37 @@ void HL7650commandClass::process(void)
 							if (MQTT.dequeued_data[0] == MQTT_float)
 							{ // float data type
 								float recovered_float = dataconversion.float32_from_four_uint8(MQTT.dequeued_data[3], MQTT.dequeued_data[2], MQTT.dequeued_data[5], MQTT.dequeued_data[4]);
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%3.1f\"", recovered_name, recovered_float);
+								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%3.1f\"", recovered_name, recovered_float);
 							}
 
 							if (MQTT.dequeued_data[0] == MQTT_uint32_t)
 							{ // uint32_t data type
 								uint32_t recovered_int32t = dataconversion.uint32_t_from_four_uint8(MQTT.dequeued_data[3], MQTT.dequeued_data[2], MQTT.dequeued_data[5], MQTT.dequeued_data[4]);
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%lu\"", recovered_name, recovered_int32t);
+								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%lu\"", recovered_name, recovered_int32t);
 							}
 
 							if (MQTT.dequeued_data[0] == MQTT_uint16_t)
 							{ // uint16_t data type
 								uint16_t recovered_int16t = ((uint16_t)MQTT.dequeued_data[3] << 8) | MQTT.dequeued_data[2];
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%hu\"", recovered_name, recovered_int16t);
+								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%hu\"", recovered_name, recovered_int16t);
 							}
 
 							if (MQTT.dequeued_data[0] == MQTT_uint8_t)
 							{ // uint8_t data type
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%u\"", recovered_name, MQTT.dequeued_data[2]);
+								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%u\"", recovered_name, MQTT.dequeued_data[2]);
 							}
 
 							if (MQTT.dequeued_data[0] == MQTT_int8_t)
 							{ // int8_t data type
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%i\"", recovered_name, (int8_t)MQTT.dequeued_data[2]);
+								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%i\"", recovered_name, (int8_t)MQTT.dequeued_data[2]);
 							}
 
 							if (MQTT.dequeued_data[0] == MQTT_char)
 							{ // char data type
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 20, ",\"%s\":\"%s\"", recovered_name, MQTT.dequeued_data + 2);
+								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%s\"", recovered_name, MQTT.dequeued_data + 2);
 							}
 
-							if (strlen(msg_payload_buf) >= Modem_buffer_size - 20)
+							if (strlen(msg_payload_buf) >= 140)
 							{ // break from loop if there isnt enough room for another data point
 								break;
 							}
