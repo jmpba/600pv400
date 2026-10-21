@@ -875,6 +875,8 @@ void HL7650commandClass::process(void)
 						char msg_payload_buf[Modem_buffer_size] = {'\0'};
 						char recovered_name[3] = {'\0'};
 
+						DS1338.epoch=DS1338.readRTC(RTC0);
+						
 						snprintf(msg_payload_buf, 50, "{\"deviceID\":\"%s\",\"ts\":\"%lu\"", MQTT.MQTT_CLIENT_ID, DS1338.epoch);
 
 						while (MQTT.queue_size() > 0)
