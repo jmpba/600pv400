@@ -1518,41 +1518,37 @@ void HL7650responseClass::ProcessModemResponse()
 		uint16_t char_offset = strstr(PROCESSING_buffer, "+KTCP_ACK:") - PROCESSING_buffer;
 
 		strtok(PROCESSING_buffer + char_offset, ":,");
-
-		uint8_t tcp_session = atoi(strtok(NULL, ","));
-		uint32_t ackedBytes = atoi(strtok(NULL, ","));
-		uint32_t sentBytes = atoi(strtok(NULL, ","));
-
-		if (tcp_session == MQTT.mqtt_tcp_session_id)
+		char* session_token = strtok(NULL, ",");
+		char* acked_bytes_token = strtok(NULL, ",");
+		char* sent_bytes_token = strtok(NULL, ",");
+		if (session_token != NULL && acked_bytes_token != NULL)
 		{
-			/*
-			if (debugEN == 1) {
-				DEBUG.print(F("Bytes sent to server: "));
-				DEBUG.println(sentBytes);
-				DEBUG.print(F("Bytes received by server: "));
-				DEBUG.println(ackedBytes);
+			uint8_t tcp_session = (uint8_t)atoi(session_token);
+			uint32_t acked_bytes = (uint32_t)atol(acked_bytes_token);
+			bool has_sent_count = sent_bytes_token != NULL;
+			uint32_t sent_bytes = has_sent_count ? (uint32_t)atol(sent_bytes_token) : 0;
+
+			if (tcp_session == MQTT.mqtt_tcp_session_id)
+			{
+				if (debugEN == 1)
+				{
+					DEBUG.print(F("TCP receive ACK bytes="));
+					DEBUG.print(acked_bytes);
+					if (has_sent_count)
+					{
+						DEBUG.print(F(" sent="));
+						DEBUG.print(sent_bytes);
+					}
+					DEBUG.println();
+				}
+
+				if (HL7650.ModemCommandStep == MQTTconnectRECV ||
+					HL7650.ModemCommandStep == MQTTpublishRECV ||
+					HL7650.ModemCommandStep == MQTTdisconnectRECV)
+				{
+					HL7650.modemresponsereceived = 101;
+				}
 			}
-			*/
-		}
-
-		if (ackedBytes == sentBytes)
-		{
-			// if (debugEN == 1) {
-			//	DEBUG.println(F("DATA SEND OK"));
-			// }
-		}
-
-		if (HL7650.ModemCommandStep == MQTTconnectRECV)
-		{
-			HL7650.modemresponsereceived = 101;
-		}
-		if (HL7650.ModemCommandStep == MQTTpublishRECV)
-		{
-			HL7650.modemresponsereceived = 101;
-		}
-		if (HL7650.ModemCommandStep == MQTTdisconnectRECV)
-		{
-			HL7650.modemresponsereceived = 101;
 		}
 
 		// if (HL7650.ModemCommandStep == 201 || HL7650.ModemCommandStep == 231 || HL7650.ModemCommandStep == 261) { HL7650.modemreadyfornextcommand = 1; }// ack data recieve complete
