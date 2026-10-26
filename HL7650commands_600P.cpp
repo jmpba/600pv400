@@ -883,14 +883,7 @@ void HL7650commandClass::process(void)
 						{
 
 							MQTT.dequeue_MQTT_update();
-							if (MQTT.dequeued_data[0] == MQTT_char)
-							{
-								memcpy(recovered_name, MQTT.dequeued_data + 14, 2);
-							}
-							else
-							{
-								memcpy(recovered_name, MQTT.dequeued_data + 6, 2);
-							}
+							memcpy(recovered_name, MQTT.dequeued_data + 14, 2);
 
 							recovered_name[2] = '\0';
 
@@ -927,7 +920,7 @@ void HL7650commandClass::process(void)
 								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%s\"", recovered_name, MQTT.dequeued_data + 2);
 							}
 
-							if (strlen(msg_payload_buf) >= 140)
+							if (strlen(msg_payload_buf) >= 300)
 							{ // break from loop if there isnt enough room for another data point
 								break;
 							}

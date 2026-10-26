@@ -64,7 +64,7 @@ typedef enum MQTT_RETURN_Code_t {
 class MQTTClass
 {
  protected:
-
+	void queue_update_record(uint8_t data_type, const void* data, uint8_t data_length, const char* data_name);
 
  public:
 
@@ -127,9 +127,9 @@ extern MQTT_Response response;
 #define QUEUE_SIZE 128
 
 typedef struct MQTT_Queue_t {
-	/*MQTT queue - each value placed into the queue takes 8 bytes of the buffer defined below.
+	/*MQTT queue - each value placed into the queue takes 16 bytes of the buffer defined below.
 	*/
-	char buffer[1024] = { '\0' };
+	char buffer[QUEUE_SIZE * 16] = { '\0' };
 	uint16_t front = 0;
 	uint16_t rear = 0;
 	uint16_t itemCount = 0;

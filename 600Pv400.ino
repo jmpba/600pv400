@@ -192,23 +192,23 @@ void loop() {
 		}
 
 		if (bitRead(HardwareStatus, 3) == 1) { //if sensor 2 enabled
-			MQTT.queue_MQTT_update(sensor2.T, "tb"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.Tdf, "t2"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.Tdfa, "f2"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.H2O, "h2"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.P, "p2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.T, "T2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.Tdf, "D2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.Tdfa, "d2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.H2O, "M2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.P, "P2"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor2.Pnorm, "n2"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.Rhoo, "r2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.Rhoo, "R2"); //add new value to MQTT send queue
 		}
 
 		if (bitRead(HardwareStatus, 4) == 1) { //if sensor 3 enabled
-			MQTT.queue_MQTT_update(sensor3.T, "tc"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.Tdf, "t3"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.Tdfa, "f3"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.H2O, "h3"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.P, "p3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.T, "T3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.Tdf, "D3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.Tdfa, "d3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.H2O, "M3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.P, "P3"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor3.Pnorm, "n3"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.Rhoo, "r3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.Rhoo, "R3"); //add new value to MQTT send queue
 		}
 
 		MQTTsend_timer = millis();		
