@@ -182,32 +182,32 @@ void loop() {
 		MQTT.queue_MQTT_update(MCP98244.PCBtemp, "Tp"); //add new value to MQTT send queue
 
 		if (bitRead(HardwareStatus, 2) == 1) { //if sensor 1 enabled
-			MQTT.queue_MQTT_update(sensor1.T, "ta"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor1.Tdf, "td"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor1.Tdfa, "tf"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor1.H2O, "h1"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor1.P, "p1"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor1.Pnorm, "pn"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor1.Rhoo, "r1"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor1.T, "TA"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor1.Tdf, "TD"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor1.Tdfa, "TF"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor1.H2O, "H1"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor1.P, "P1"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor1.Pnorm, "PN"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor1.Rhoo, "R1"); //add new value to MQTT send queue
 		}
 
 		if (bitRead(HardwareStatus, 3) == 1) { //if sensor 2 enabled
 			MQTT.queue_MQTT_update(sensor2.T, "T2"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor2.Tdf, "D2"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.Tdfa, "d2"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.H2O, "M2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.Tdfa, "F2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.H2O, "H2"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor2.P, "P2"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.Pnorm, "n2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.Pnorm, "PN"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor2.Rhoo, "R2"); //add new value to MQTT send queue
 		}
 
 		if (bitRead(HardwareStatus, 4) == 1) { //if sensor 3 enabled
 			MQTT.queue_MQTT_update(sensor3.T, "T3"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor3.Tdf, "D3"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.Tdfa, "d3"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.H2O, "M3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.Tdfa, "F3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.H2O, "H3"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor3.P, "P3"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.Pnorm, "n3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.Pnorm, "PN"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor3.Rhoo, "R3"); //add new value to MQTT send queue
 		}
 

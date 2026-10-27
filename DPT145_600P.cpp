@@ -185,7 +185,7 @@ void sensorClass::read()
 
 				if (strstr(sensor1.serialNO, dataParameters) == NULL) {//UPDATE SENSOR SERIAL NUMBER TO SERVER IF IT HAS CHANGED.
 					strncpy(sensor1.serialNO, dataParameters, 8);
-					MQTT.queue_MQTT_update(sensor1.serialNO, "S1"); //add new value to MQTT send queue
+					MQTT.queue_MQTT_update(sensor1.serialNO, "S1"); //add new value to MQTT send queue(Serial number sensor 1)
 					//if (debugEN == 1) { DEBUG.print(F("SENSOR 1 S/N UPDATE: ")); DEBUG.println(sensor1.serialNO); }
 				}
 
@@ -276,7 +276,7 @@ void sensorClass::read()
 
 				if (sensor1.errorcode != errcode) {
 					sensor1.errorcode = errcode;
-					MQTT.queue_MQTT_update(sensor1.errorcode, "E1"); //add new value to MQTT send queue
+					MQTT.queue_MQTT_update(sensor1.errorcode, "E1"); //add new value to MQTT send queue(Error code sensor 1)
 				}
 
 				modbusRTU.u8MBStatus = ku8MBDone;
@@ -505,7 +505,7 @@ void sensorClass::read()
 
 				if (strstr(sensor2.serialNO, dataParameters) == NULL) {//UPDATE SENSOR SERIAL NUMBER TO SERVER IF IT HAS CHANGED.
 					strncpy(sensor2.serialNO, dataParameters, 8);
-					MQTT.queue_MQTT_update(sensor2.serialNO, "S2"); //add new value to MQTT send queue
+					MQTT.queue_MQTT_update(sensor2.serialNO, "S2"); //add new value to MQTT send queue (Serial number sensor 2)
 				}
 
 				modbusRTU.u8MBStatus = ku8MBDone;
@@ -561,7 +561,7 @@ void sensorClass::read()
 
 				if (sensor2.errorcode != errcode) {
 					sensor2.errorcode = errcode;
-					MQTT.queue_MQTT_update(sensor2.errorcode, "E2"); //add new value to MQTT send queue
+					MQTT.queue_MQTT_update(sensor2.errorcode, "E2"); //add new value to MQTT send queue(Error code sensor 2)
 				}
 
 				modbusRTU.u8MBStatus = ku8MBDone;
@@ -788,7 +788,7 @@ void sensorClass::read()
 
 				if (strstr(sensor3.serialNO, dataParameters) == NULL) {//UPDATE SENSOR SERIAL NUMBER TO SERVER IF IT HAS CHANGED.
 					strncpy(sensor3.serialNO, dataParameters, 8);
-					MQTT.queue_MQTT_update(sensor3.serialNO, "S3"); //add new value to MQTT send queue
+					MQTT.queue_MQTT_update(sensor3.serialNO, "S3"); //add new value to MQTT send queue(Serial number sensor 3)
 				}
 
 				modbusRTU.u8MBStatus = ku8MBDone;
@@ -844,7 +844,7 @@ void sensorClass::read()
 
 				if (sensor3.errorcode != errcode) {
 					sensor3.errorcode = errcode;
-					MQTT.queue_MQTT_update(sensor3.errorcode, "E3"); //add new value to MQTT send queue
+					MQTT.queue_MQTT_update(sensor3.errorcode, "E3"); //add new value to MQTT send queue(Error code sensor 3)
 				}
 
 				modbusRTU.u8MBStatus = ku8MBDone;

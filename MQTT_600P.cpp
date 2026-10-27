@@ -465,22 +465,9 @@ uint16_t MQTTClass::queue_size() {
 
 	return send_queue.itemCount;
 }
-//Heartbeat reading current dpt 145 values regardless if they have changed or not. This is to ensure that the MQTT server has the most up to date values at all times.
 
-/*
-void MQTTClass::queue_MQTT_TIMED_update(void) {
-    queue_MQTT_update(sensor1.T,    "ta");
-    queue_MQTT_update(sensor1.Tdf,  "td");
-    queue_MQTT_update(sensor1.Tdfa, "tf");
-    queue_MQTT_update(sensor1.H2O,  "h1");
-    queue_MQTT_update(sensor1.P,    "p1");
-    queue_MQTT_update(sensor1.Rhoo, "r1");
-    queue_MQTT_update(sensor2.T,    "tb");
-    queue_MQTT_update(sensor2.P,    "p2");
-    queue_MQTT_update(sensor3.T,    "tc");
-    queue_MQTT_update(sensor3.P,    "p3");
-}
-*/
+
+//Heartbeat reading current dpt 145 values regardless if they have changed or not. This is to ensure that the MQTT server has the most up to date values at all times.
 void MQTTClass::queue_MQTT_TIMED_update(void){
     //SENSOR 1
     queue_MQTT_update(sensor1.T,    "ta");
