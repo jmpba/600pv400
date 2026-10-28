@@ -1473,10 +1473,19 @@ void HL7650responseClass::ProcessModemResponse()
 		uint8_t tcp_session = atoi(strtok(NULL, ":,"));
 		// HL7650.tcp_dataavailable = atoi(strtok(NULL, ":,"));
 		uint32_t receivedBytes = atoi(strtok(NULL, ":,"));
+		//Sanity check to ensure that the received bytes value is not greater than 1500, which is the maximum size of a TCP packet. If it is, reset it to 0 to avoid incorrect data handling.
+		if (receivedBytes > 1500){receivedBytes = 0;}
+				
 
 		if (tcp_session == MQTT.mqtt_tcp_session_id)
 		{
-			if (receivedBytes > HL7650.tcp_dataavailable)
+			// if (receivedBytes > HL7650.tcp_dataavailable)
+			// // if the received bytes is greater than the previous value, add the difference to the total available bytes - JM
+			// {
+			// 	HL7650.tcp_dataavailable += receivedBytes;
+			// } 
+
+			if (receivedBytes > 0 && receivedBytes <= 1500)
 			// if the received bytes is greater than the previous value, add the difference to the total available bytes - JM
 			{
 				HL7650.tcp_dataavailable += receivedBytes;
