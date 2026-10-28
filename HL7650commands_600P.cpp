@@ -694,6 +694,7 @@ void HL7650commandClass::process(void)
 
 			if (HL7650.modemreadyfornextcommand == 1)
 			{
+				HL7650.tcp_dataavailable = 0;//clear stale from previous session
 				if (debugEN == 1)
 				{
 					DEBUG.print(F("MQTT connect...\r\n"));
@@ -745,7 +746,7 @@ void HL7650commandClass::process(void)
 
 		case MQTTconnectRECV: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-			if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0)
+			if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0 && (millis() - HL7650.modem_response_timeout) >= 200)
 			{
 				sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
 				MQTT.response_expected = true;
@@ -919,8 +920,8 @@ void HL7650commandClass::process(void)
 							{ // char data type
 								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%s\"", recovered_name, MQTT.dequeued_data + 2);
 							}
-
-							if (strlen(msg_payload_buf) >= 300)
+							//increased the payload buffer size to 400 to allow for more data points to be added to the payload. This is a temporary fix and should be addressed in the future.	
+							if (strlen(msg_payload_buf) >= 400)
 							{ // break from loop if there isnt enough room for another data point
 								break;
 							}
@@ -1038,7 +1039,7 @@ void HL7650commandClass::process(void)
 						break;
 					}
 
-					if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0)
+					if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0 && (millis() - HL7650.modem_response_timeout) >= 200)
 					{
 						sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
 						MQTT.response_expected = true;

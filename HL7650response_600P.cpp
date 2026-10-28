@@ -1477,8 +1477,9 @@ void HL7650responseClass::ProcessModemResponse()
 		if (tcp_session == MQTT.mqtt_tcp_session_id)
 		{
 			if (receivedBytes > HL7650.tcp_dataavailable)
+			// if the received bytes is greater than the previous value, add the difference to the total available bytes - JM
 			{
-				HL7650.tcp_dataavailable = receivedBytes;
+				HL7650.tcp_dataavailable += receivedBytes;
 			}
 
 			if (HL7650.ModemCommandStep == MQTTconnectSEND)

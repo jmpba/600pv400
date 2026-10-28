@@ -70,7 +70,7 @@ void sensorClass::read()
 				combinedregister = roundf(combinedregister * 100) / 100; //round to 2dp
 				if (combinedregister != sensor1.T) { //if the value changes then update
 					sensor1.T = combinedregister; 
-					MQTT.queue_MQTT_update(sensor1.T, "ta"); //add new value to MQTT send queue - TEMPERATURE semsor 1
+					MQTT.queue_MQTT_update(sensor1.T, "t1"); //add new value to MQTT send queue - TEMPERATURE semsor 1
 				
 				} 
 
@@ -81,7 +81,7 @@ void sensorClass::read()
 				combinedregister = roundf(combinedregister * 100) / 100; //round to 2dp
 				if (combinedregister != sensor1.Tdf) {  //if the value changes then update
 					sensor1.Tdf = combinedregister; 
-					MQTT.queue_MQTT_update(sensor1.Tdf, "td"); //add new value to MQTT send queue - DEWPOINT sensor 1
+					MQTT.queue_MQTT_update(sensor1.Tdf, "d1"); //add new value to MQTT send queue - DEWPOINT sensor 1
 				
 				}
 
@@ -136,7 +136,7 @@ void sensorClass::read()
 				combinedintregister = dataconversion.pressureconvert(combinedregister);
 				if (combinedintregister != sensor1.Pnorm) { //if the value changes then update
 					sensor1.Pnorm = combinedintregister;
-					MQTT.queue_MQTT_update(sensor1.Pnorm, "pn"); //add new value to MQTT send queue - PRESSURE @20C sensor 1
+					MQTT.queue_MQTT_update(sensor1.Pnorm, "n1"); //add new value to MQTT send queue - PRESSURE @20C sensor 1
 				}
 
 				modbusRTU.u8MBStatus = ku8MBDone;
@@ -391,7 +391,7 @@ void sensorClass::read()
 				combinedregister = roundf(combinedregister * 100) / 100; //round to 2dp
 				if (combinedregister != sensor2.T) { //if the value changes then update
 					sensor2.T = combinedregister;
-				MQTT.queue_MQTT_update(sensor2.T, "tb"); //add new value to MQTT send queue - TEMPERATURE sensor 2
+				MQTT.queue_MQTT_update(sensor2.T, "t2"); //add new value to MQTT send queue - TEMPERATURE sensor 2
 				}
 
 				register2 = modbusRTU.getResponseBuffer(0x03); //Dewpoint
@@ -401,7 +401,7 @@ void sensorClass::read()
 				combinedregister = roundf(combinedregister * 100) / 100; //round to 2dp
 				if (combinedregister != sensor2.Tdf) {  //if the value changes then update
 					sensor2.Tdf = combinedregister;
-					MQTT.queue_MQTT_update(sensor2.Tdf, "t2"); //add new value to MQTT send queue - DEWPOINT sensor 2
+					MQTT.queue_MQTT_update(sensor2.Tdf, "d2"); //add new value to MQTT send queue - DEWPOINT sensor 2
 				}
 
 				register2 = modbusRTU.getResponseBuffer(0x07); //Dewpoint atm
@@ -676,7 +676,7 @@ void sensorClass::read()
 				combinedregister = roundf(combinedregister * 100) / 100; //round to 2dp
 				if (combinedregister != sensor3.T) { //if the value changes then update
 					sensor3.T = combinedregister;
-					MQTT.queue_MQTT_update(sensor3.T, "tc"); //add new value to MQTT send queue - TEMPERATURE sensor 3
+					MQTT.queue_MQTT_update(sensor3.T, "t3"); //add new value to MQTT send queue - TEMPERATURE sensor 3
 				}
 
 				register2 = modbusRTU.getResponseBuffer(0x03); //Dewpoint
@@ -686,7 +686,7 @@ void sensorClass::read()
 				combinedregister = roundf(combinedregister * 100) / 100; //round to 2dp
 				if (combinedregister != sensor3.Tdf) {  //if the value changes then update
 					sensor3.Tdf = combinedregister;
-					MQTT.queue_MQTT_update(sensor3.Tdf, "t3"); //add new value to MQTT send queue - DEWPOINT sensor 3
+					MQTT.queue_MQTT_update(sensor3.Tdf, "d3"); //add new value to MQTT send queue - DEWPOINT sensor 3
 				}
 
 				register2 = modbusRTU.getResponseBuffer(0x07); //Dewpoint atm

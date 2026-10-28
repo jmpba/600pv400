@@ -470,24 +470,24 @@ uint16_t MQTTClass::queue_size() {
 //Heartbeat reading current dpt 145 values regardless if they have changed or not. This is to ensure that the MQTT server has the most up to date values at all times.
 void MQTTClass::queue_MQTT_TIMED_update(void){
     //SENSOR 1
-    queue_MQTT_update(sensor1.T,    "ta");
-    queue_MQTT_update(sensor1.Tdf,  "td");
-    queue_MQTT_update(sensor1.Tdfa, "tf");
+    queue_MQTT_update(sensor1.T,    "t1");
+    queue_MQTT_update(sensor1.Tdf,  "d1");
+    queue_MQTT_update(sensor1.Tdfa, "f1");
     queue_MQTT_update(sensor1.H2O,  "h1");
     queue_MQTT_update(sensor1.P,    "p1");
     queue_MQTT_update(sensor1.Rhoo, "r1");
-    queue_MQTT_update(sensor1.Pnorm,"pn");
+    queue_MQTT_update(sensor1.Pnorm,"n1");
     //SENSOR 2
-    queue_MQTT_update(sensor2.T,    "tb");
-    queue_MQTT_update(sensor2.Tdf,  "t2");
+    queue_MQTT_update(sensor2.T,    "t2");
+    queue_MQTT_update(sensor2.Tdf,  "d2");
     queue_MQTT_update(sensor2.Tdfa, "f2");
     queue_MQTT_update(sensor2.H2O,  "h2");
     queue_MQTT_update(sensor2.P,    "p2");
     queue_MQTT_update(sensor2.Rhoo, "r2");
     queue_MQTT_update(sensor2.Pnorm,"n2");
     //SENSOR 3
-    queue_MQTT_update(sensor3.T,    "tc");
-    queue_MQTT_update(sensor3.Tdf,  "t3");
+    queue_MQTT_update(sensor3.T,    "t3");
+    queue_MQTT_update(sensor3.Tdf,  "d3");
     queue_MQTT_update(sensor3.Tdfa, "f3");
     queue_MQTT_update(sensor3.H2O,  "h3");
     queue_MQTT_update(sensor3.P,    "p3");
