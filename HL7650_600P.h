@@ -15,6 +15,7 @@
 #define MDM_CTS 32
 #define MDM_DTR 33
 
+
 #define MODEM_RESPONSE_TIMOUT_MS 65000
 
 #define NONE 0

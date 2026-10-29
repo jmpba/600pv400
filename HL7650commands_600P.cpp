@@ -694,6 +694,7 @@ void HL7650commandClass::process(void)
 
 			if (HL7650.modemreadyfornextcommand == 1)
 			{
+				HL7650.tcp_dataavailable = 0;//clear stale from previous session
 				if (debugEN == 1)
 				{
 					DEBUG.print(F("MQTT connect...\r\n"));
@@ -745,7 +746,7 @@ void HL7650commandClass::process(void)
 
 		case MQTTconnectRECV: // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-			if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0)
+			if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0 && (millis() - HL7650.modem_response_timeout) >= 200)
 			{
 				sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
 				MQTT.response_expected = true;
@@ -874,105 +875,198 @@ void HL7650commandClass::process(void)
 						if (!MQTT.publish_pending) {
 						char msg_payload_buf[Modem_buffer_size] = {'\0'};
 						char recovered_name[3] = {'\0'};
+						size_t used = 0;
 
-						DS1338.epoch=DS1338.readRTC(RTC0);
-						
-						snprintf(msg_payload_buf, 50, "{\"deviceID\":\"%s\",\"ts\":\"%lu\"", MQTT.MQTT_CLIENT_ID, DS1338.epoch);
+						DS1338.epoch = DS1338.readRTC(RTC0);
+
+						int written = snprintf(
+							msg_payload_buf,
+							sizeof(msg_payload_buf),
+							"{\"deviceID\":\"%s\",\"ts\":\"%lu\"",
+							MQTT.MQTT_CLIENT_ID,
+							DS1338.epoch
+						);
+
+						if (written < 0 || (size_t)written >= sizeof(msg_payload_buf))
+						{
+							MQTT.publish_pending = false;
+							MQTT.send_attempt = 0;
+							HL7650command.complete(MQTTpublish);
+							break;
+						}
+
+						used = (size_t)written;
 
 						while (MQTT.queue_size() > 0)
 						{
-
 							MQTT.dequeue_MQTT_update();
-							if (MQTT.dequeued_data[0] == MQTT_char)
-							{
-								memcpy(recovered_name, MQTT.dequeued_data + 14, 2);
-							}
-							else
-							{
-								memcpy(recovered_name, MQTT.dequeued_data + 6, 2);
-							}
-
+							memcpy(recovered_name, MQTT.dequeued_data + 14, 2);
 							recovered_name[2] = '\0';
 
 							if (MQTT.dequeued_data[0] == MQTT_float)
-							{ // float data type
-								float recovered_float = dataconversion.float32_from_four_uint8(MQTT.dequeued_data[3], MQTT.dequeued_data[2], MQTT.dequeued_data[5], MQTT.dequeued_data[4]);
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%3.1f\"", recovered_name, recovered_float);
+							{
+								float recovered_float = dataconversion.float32_from_four_uint8(
+									MQTT.dequeued_data[3],
+									MQTT.dequeued_data[2],
+									MQTT.dequeued_data[5],
+									MQTT.dequeued_data[4]
+								);
+
+								int n = snprintf(
+									msg_payload_buf + used,
+									sizeof(msg_payload_buf) - used,
+									",\"%s\":\"%3.1f\"",
+									recovered_name,
+									recovered_float
+								);
+
+								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
+								{
+									break;
+								}
+								used += (size_t)n;
 							}
 
-							if (MQTT.dequeued_data[0] == MQTT_uint32_t)
-							{ // uint32_t data type
-								uint32_t recovered_int32t = dataconversion.uint32_t_from_four_uint8(MQTT.dequeued_data[3], MQTT.dequeued_data[2], MQTT.dequeued_data[5], MQTT.dequeued_data[4]);
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%lu\"", recovered_name, recovered_int32t);
+							else if (MQTT.dequeued_data[0] == MQTT_uint32_t)
+							{
+								uint32_t recovered_int32t = dataconversion.uint32_t_from_four_uint8(
+									MQTT.dequeued_data[3],
+									MQTT.dequeued_data[2],
+									MQTT.dequeued_data[5],
+									MQTT.dequeued_data[4]
+								);
+
+								int n = snprintf(
+									msg_payload_buf + used,
+									sizeof(msg_payload_buf) - used,
+									",\"%s\":\"%lu\"",
+									recovered_name,
+									recovered_int32t
+								);
+
+								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
+								{
+									break;
+								}
+								used += (size_t)n;
 							}
 
-							if (MQTT.dequeued_data[0] == MQTT_uint16_t)
-							{ // uint16_t data type
+							else if (MQTT.dequeued_data[0] == MQTT_uint16_t)
+							{
 								uint16_t recovered_int16t = ((uint16_t)MQTT.dequeued_data[3] << 8) | MQTT.dequeued_data[2];
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%hu\"", recovered_name, recovered_int16t);
+
+								int n = snprintf(
+									msg_payload_buf + used,
+									sizeof(msg_payload_buf) - used,
+									",\"%s\":\"%hu\"",
+									recovered_name,
+									recovered_int16t
+								);
+
+								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
+								{
+									break;
+								}
+								used += (size_t)n;
 							}
 
-							if (MQTT.dequeued_data[0] == MQTT_uint8_t)
-							{ // uint8_t data type
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%u\"", recovered_name, MQTT.dequeued_data[2]);
+							else if (MQTT.dequeued_data[0] == MQTT_uint8_t)
+							{
+								int n = snprintf(
+									msg_payload_buf + used,
+									sizeof(msg_payload_buf) - used,
+									",\"%s\":\"%u\"",
+									recovered_name,
+									MQTT.dequeued_data[2]
+								);
+
+								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
+								{
+									break;
+								}
+								used += (size_t)n;
 							}
 
-							if (MQTT.dequeued_data[0] == MQTT_int8_t)
-							{ // int8_t data type
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%i\"", recovered_name, (int8_t)MQTT.dequeued_data[2]);
+							else if (MQTT.dequeued_data[0] == MQTT_int8_t)
+							{
+								int n = snprintf(
+									msg_payload_buf + used,
+									sizeof(msg_payload_buf) - used,
+									",\"%s\":\"%i\"",
+									recovered_name,
+									(int8_t)MQTT.dequeued_data[2]
+								);
+
+								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
+								{
+									break;
+								}
+								used += (size_t)n;
 							}
 
-							if (MQTT.dequeued_data[0] == MQTT_char)
-							{ // char data type
-								snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 32, ",\"%s\":\"%s\"", recovered_name, MQTT.dequeued_data + 2);
-							}
+							else if (MQTT.dequeued_data[0] == MQTT_char)
+							{
+								int n = snprintf(
+									msg_payload_buf + used,
+									sizeof(msg_payload_buf) - used,
+									",\"%s\":\"%s\"",
+									recovered_name,
+									MQTT.dequeued_data + 2
+								);
 
-							if (strlen(msg_payload_buf) >= 140)
-							{ // break from loop if there isnt enough room for another data point
-								break;
+								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
+								{
+									break;
+								}
+								used += (size_t)n;
 							}
 						}
 
-						snprintf(&msg_payload_buf[strlen(msg_payload_buf)], 2, "}");
+						if (used + 2 >= sizeof(msg_payload_buf))
+						{
+							MQTT.publish_pending = false;
+							MQTT.send_attempt = 0;
+							HL7650command.complete(MQTTpublish);
+							break;
+						}
+
+						snprintf(msg_payload_buf + used, sizeof(msg_payload_buf) - used, "}");
 						strncpy(MQTT.pending_payload, msg_payload_buf, sizeof(MQTT.pending_payload) - 1);
 						MQTT.pending_payload[sizeof(MQTT.pending_payload) - 1] = '\0';
 						MQTT.message_id++;
 						MQTT.published_ID = MQTT.message_id;
 						MQTT.publish_pending = true;
 						MQTT.send_attempt = 0;
-						}
+}
 
-						response.ack_type = RESET;
-						response.message_id = 0;
-						response.return_code = NOT_AUTHORIZED;
-						/*
-						if (debugEN == 1) {
-							DEBUG.print(F("message size: "));
-							DEBUG.println(strlen(msg_payload_buf));
-							DEBUG.println(msg_payload_buf);
-						}
-						*/
-						uint8_t duplicate = MQTT.send_attempt == 0 ? 0 : 1;
-						MQTT.send_attempt++;
-						size_t eof_length = strlen(HL7650.MODEM_EOF_PATTERN);
-						int packet_length = MQTT.get_mqtt_pub_message(
-							MQTT.send_buff,
-							sizeof(MQTT.send_buff) - eof_length,
-							MQTT.MQTT_TOPIC,
-							MQTT.pending_payload,
-							1,
-							duplicate,
-							MQTT.published_ID);
-						if (packet_length < 0)
-						{
-							if (debugEN == 1) { DEBUG.println(F("MQTT publish packet exceeds send buffer")); }
-							MQTT.publish_pending = false;
-							MQTT.send_attempt = 0;
-							HL7650command.complete(MQTTpublish);
-							break;
-						}
-						msglen = packet_length;
-						memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
+response.ack_type = RESET;
+response.message_id = 0;
+response.return_code = NOT_AUTHORIZED;
+
+uint8_t duplicate = MQTT.send_attempt == 0 ? 0 : 1;
+MQTT.send_attempt++;
+size_t eof_length = strlen(HL7650.MODEM_EOF_PATTERN);
+int packet_length = MQTT.get_mqtt_pub_message(
+    MQTT.send_buff,
+    sizeof(MQTT.send_buff) - eof_length,
+    MQTT.MQTT_TOPIC,
+    MQTT.pending_payload,
+    1,
+    duplicate,
+    MQTT.published_ID
+);
+
+if (packet_length < 0)
+{
+    if (debugEN == 1) { DEBUG.println(F("MQTT publish packet exceeds send buffer")); }
+    MQTT.publish_pending = false;
+    MQTT.send_attempt = 0;
+    HL7650command.complete(MQTTpublish);
+    break;
+}
+
+msglen = packet_length;
+memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 						/*
 						if (debugEN == 1) {
 							DEBUG.print(F("MQTT.send_buff: "));DEBUG.println();
@@ -1045,7 +1139,7 @@ void HL7650commandClass::process(void)
 						break;
 					}
 
-					if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0)
+					if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0 && (millis() - HL7650.modem_response_timeout) >= 200)
 					{
 						sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
 						MQTT.response_expected = true;

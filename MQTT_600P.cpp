@@ -349,275 +349,81 @@ void MQTTClass::parse_mqtt_response(int buff_size, char* buff) {
 	}
 }
 
-void MQTTClass::queue_MQTT_update(uint32_t data, const char* data_name) { //this queue only stores names of 2 characters or less
+void MQTTClass::queue_update_record(uint8_t data_type, const void* data, uint8_t data_length, const char* data_name) {
+	if (data == NULL || data_name == NULL || data_length > 12 || data_name[0] == '\0') { return; }
 
-/**
- * MQTT queue packet
- ***************************************************************************************************
- * |     7     |     6     |     5     |     4     |     3     |     2     |     1     |     0     |
- * |-----------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|
- * |  MQTT tag |  MQTT tag |    data   |	data   | 	data   |	data   | messageID | data type |
- */
-
-	if (queue_isFull() && debugEN == 1) { DEBUG.println(F("MQTT queue full")); }
+	char key[2] = { data_name[0], data_name[1] };
+	uint16_t index = send_queue.front;
+	for (uint16_t item = 0; item < send_queue.itemCount; item++) {
+		uint16_t address = index * 16;
+		if (memcmp(send_queue.buffer + address + 14, key, sizeof(key)) == 0) {
+			memset(send_queue.buffer + address, 0, 16);
+			send_queue.buffer[address] = data_type;
+			send_queue.buffer[address + 1] = send_queue.next_id++;
+			memcpy(send_queue.buffer + address + 2, data, data_length);
+			memcpy(send_queue.buffer + address + 14, key, sizeof(key));
+			return;
+		}
+		index = (index + 1) % QUEUE_SIZE;
+	}
 
 	if (send_queue.itemCount == 0) {
-		send_queue.next_id = 1; //reset message identifier if all messages have been sent.
-		send_queue.rear = 0;
 		send_queue.front = 0;
+		send_queue.rear = 0;
 		MQTT.message_id = 0;
-	}
-	
-	if (send_queue.itemCount != 0) { send_queue.rear++; }
-	if (send_queue.rear == QUEUE_SIZE) { send_queue.rear = 0; } //return rear of queue to start
-
-	if ((send_queue.front == send_queue.rear) && send_queue.itemCount > 1) { //bump the start of the queue up one as oldest values will be overwritten by rollover
-		send_queue.front++;
-		if (send_queue.front == QUEUE_SIZE) { send_queue.front = 0; } //return rear of queue to start
+		send_queue.next_id = 1;
 	}
 
-	uint32_t address = 0;
-	if (send_queue.rear > 0) {
-
-		address += 8 * (send_queue.rear);
+	if (send_queue.itemCount == QUEUE_SIZE) {
+		if (debugEN == 1) { DEBUG.println(F("MQTT queue full; replacing oldest resource")); }
+		send_queue.front = (send_queue.front + 1) % QUEUE_SIZE;
+		send_queue.itemCount--;
 	}
 
-	memcpy(send_queue.buffer + address, &MQTT_uint32_t, 1); //flag uint32_t data type
-	memcpy(send_queue.buffer + address + 1, &send_queue.next_id, 1); //add queue ID
-	memcpy(send_queue.buffer + address + 2, &data, 4); //add data
-	memcpy(send_queue.buffer + address + 6, data_name, 2); //add data_name
-
-	send_queue.next_id++;
-
-	if (send_queue.itemCount < QUEUE_SIZE) { send_queue.itemCount++; }
-
+	uint16_t address = send_queue.rear * 16;
+	memset(send_queue.buffer + address, 0, 16);
+	send_queue.buffer[address] = data_type;
+	send_queue.buffer[address + 1] = send_queue.next_id++;
+	memcpy(send_queue.buffer + address + 2, data, data_length);
+	memcpy(send_queue.buffer + address + 14, key, sizeof(key));
+	send_queue.rear = (send_queue.rear + 1) % QUEUE_SIZE;
+	send_queue.itemCount++;
 }
 
-void MQTTClass::queue_MQTT_update(uint16_t data, const char* data_name) { //this queue only stores names of 2 characters or less
-
-	if (queue_isFull() && debugEN == 1) { DEBUG.println(F("MQTT ")); }
-
-	if (send_queue.itemCount == 0) {
-		send_queue.next_id = 1; //reset message identifier if all messages have been sent.
-		send_queue.rear = 0;
-		send_queue.front = 0;
-		MQTT.message_id = 0;
-	}
-
-	if (send_queue.itemCount != 0) { send_queue.rear++; }
-	if (send_queue.rear == QUEUE_SIZE) { send_queue.rear = 0; } //return rear of queue to start
-
-	if ((send_queue.front == send_queue.rear) && send_queue.itemCount > 1) { //bump the start of the queue up one as oldest values will be overwritten by rollover
-		send_queue.front++;
-		if (send_queue.front == QUEUE_SIZE) { send_queue.front = 0; } //return rear of queue to start
-	}
-
-	uint32_t address = 0;
-	if (send_queue.rear > 0) {
-
-		address += 8 * (send_queue.rear);
-	}
-
-	memcpy(send_queue.buffer + address, &MQTT_uint16_t, 1); //flag uint32_t data type
-	memcpy(send_queue.buffer + address + 1, &send_queue.next_id, 1); //add queue ID
-	memcpy(send_queue.buffer + address + 2, &data, 2); //add data
-	memset(send_queue.buffer + address + 4, '\0', 1);
-	memset(send_queue.buffer + address + 5, '\0', 1);
-	memcpy(send_queue.buffer + address + 6, data_name, 2); //add data_name
-
-	send_queue.next_id++;
-
-	if (send_queue.itemCount < QUEUE_SIZE) { send_queue.itemCount++; }
-
+void MQTTClass::queue_MQTT_update(uint32_t data, const char* data_name) {
+	queue_update_record(MQTT_uint32_t, &data, sizeof(data), data_name);
 }
 
-void MQTTClass::queue_MQTT_update(uint8_t data, const char* data_name) { //this queue only stores names of 2 characters or less
-
-	if (queue_isFull() && debugEN == 1) { DEBUG.println(F("MQTT queue full")); 
-	DEBUG.print(F("MQTT Queue size: "));
-	DEBUG.println(queue_size());
-
-	DEBUG.print(F("MQTT state: "));
-	DEBUG.println(HL7650.ModemCommandStep);
-
-	DEBUG.print(F("ACK type: "));
-	DEBUG.println(response.ack_type);
-
-	DEBUG.print(F("ACK Message ID: "));
-	DEBUG.println(MQTT.published_ID);
-
-	DEBUG.print(F("Modem READY:"));
-	DEBUG.println(HL7650.modemreadyfornextcommand);
-
-	DEBUG.print(F("Modem response: "));
-	DEBUG.println(HL7650.modemresponsereceived);
-	}
-
-	if (send_queue.itemCount == 0) {
-		send_queue.next_id = 1; //reset message identifier if all messages have been sent.
-		send_queue.rear = 0;
-		send_queue.front = 0;
-		MQTT.message_id = 0;
-	}
-
-	if (send_queue.itemCount != 0) { send_queue.rear++; }
-	if (send_queue.rear == QUEUE_SIZE) { send_queue.rear = 0; } //return rear of queue to start
-
-	if ((send_queue.front == send_queue.rear) && send_queue.itemCount > 1) { //bump the start of the queue up one as oldest values will be overwritten by rollover
-		send_queue.front++;
-		if (send_queue.front == QUEUE_SIZE) { send_queue.front = 0; } //return rear of queue to start
-	}
-
-	uint32_t address = 0;
-	if (send_queue.rear > 0) {
-
-		address += 8 * (send_queue.rear);
-	}
-
-	memcpy(send_queue.buffer + address, &MQTT_uint8_t, 1); //flag uint8_t data type
-	memcpy(send_queue.buffer + address + 1, &send_queue.next_id, 1); //add queue ID
-	memcpy(send_queue.buffer + address + 2, &data, 1); //add data
-	memset(send_queue.buffer + address + 3, '\0', 1);
-	memset(send_queue.buffer + address + 4, '\0', 1);
-	memset(send_queue.buffer + address + 5, '\0', 1);
-	memcpy(send_queue.buffer + address + 6, data_name, 2); //add data_name
-
-	send_queue.next_id++;
-
-	if (send_queue.itemCount < QUEUE_SIZE) { send_queue.itemCount++; }
-
+void MQTTClass::queue_MQTT_update(uint16_t data, const char* data_name) {
+	queue_update_record(MQTT_uint16_t, &data, sizeof(data), data_name);
 }
 
-void MQTTClass::queue_MQTT_update(int8_t data, const char* data_name) { //this queue only stores names of 2 characters or less
-
-	if (queue_isFull() && debugEN == 1) { DEBUG.println(F("MQTT queue full")); }
-
-	if (send_queue.itemCount == 0) {
-		send_queue.next_id = 1; //reset message identifier if all messages have been sent.
-		send_queue.rear = 0;
-		send_queue.front = 0;
-		MQTT.message_id = 0;
-	}
-
-	if (send_queue.itemCount != 0) { send_queue.rear++; }
-	if (send_queue.rear == QUEUE_SIZE) { send_queue.rear = 0; } //return rear of queue to start
-
-	if ((send_queue.front == send_queue.rear) && send_queue.itemCount > 1) { //bump the start of the queue up one as oldest values will be overwritten by rollover
-		send_queue.front++;
-		if (send_queue.front == QUEUE_SIZE) { send_queue.front = 0; } //return rear of queue to start
-	}
-
-	uint32_t address = 0;
-	if (send_queue.rear > 0) {
-
-		address += 8 * (send_queue.rear);
-	}
-
-	memcpy(send_queue.buffer + address, &MQTT_int8_t, 1); //flag int8_t data type
-	memcpy(send_queue.buffer + address + 1, &send_queue.next_id, 1); //add queue ID
-	memcpy(send_queue.buffer + address + 2, &data, 1); //add data
-	memset(send_queue.buffer + address + 3, '\0', 1);
-	memset(send_queue.buffer + address + 4, '\0', 1);
-	memset(send_queue.buffer + address + 5, '\0', 1);
-	memcpy(send_queue.buffer + address + 6, data_name, 2); //add data_name
-
-	send_queue.next_id++;
-
-	if (send_queue.itemCount < QUEUE_SIZE) { send_queue.itemCount++; }
-
+void MQTTClass::queue_MQTT_update(uint8_t data, const char* data_name) {
+	queue_update_record(MQTT_uint8_t, &data, sizeof(data), data_name);
 }
 
-void MQTTClass::queue_MQTT_update(float data, const char* data_name) { //this queue only stores names of 2 characters or less
-
-	if (queue_isFull() && debugEN == 1) { DEBUG.println(F("queue full")); }
-
-	if (send_queue.itemCount == 0) {
-		send_queue.next_id = 1; //reset message identifier if all messages have been sent.
-		send_queue.rear = 0;
-		send_queue.front = 0;
-	}
-
-	if (send_queue.itemCount != 0) { send_queue.rear++; }
-	if (send_queue.rear == QUEUE_SIZE) { send_queue.rear = 0; } //return rear of queue to start
-
-	if ((send_queue.front == send_queue.rear) && send_queue.itemCount > 1) { //bump the start of the queue up one as oldest values will be overwritten by rollover
-		send_queue.front++;
-		if (send_queue.front == (QUEUE_SIZE-1)) { send_queue.front = 0; } //return rear of queue to start
-	}
-
-	uint32_t address = 0;
-	if (send_queue.rear > 0) {
-
-		address += 8 * (send_queue.rear);
-	}
-
-	memcpy(send_queue.buffer + address, &MQTT_float, 1); //flag float data type
-	memcpy(send_queue.buffer + address + 1, &send_queue.next_id, 1); //add queue ID
-	memcpy(send_queue.buffer + address + 2, &data, 4); //add data
-	memcpy(send_queue.buffer + address + 6, data_name, 2); //add data_name
-
-	send_queue.next_id++;
-
-	if (send_queue.itemCount < QUEUE_SIZE) { send_queue.itemCount++; }
-
+void MQTTClass::queue_MQTT_update(int8_t data, const char* data_name) {
+	queue_update_record(MQTT_int8_t, &data, sizeof(data), data_name);
 }
 
-void MQTTClass::queue_MQTT_update(char* data, const char* data_name) { //this queue only stores names of 2 characters or less
+void MQTTClass::queue_MQTT_update(float data, const char* data_name) {
+	queue_update_record(MQTT_float, &data, sizeof(data), data_name);
+}
 
-	if (queue_isFull() && debugEN == 1) { DEBUG.println(F("queue full")); }
-
-	if (send_queue.itemCount == 0) {
-		send_queue.next_id = 1; //reset message identifier if all messages have been sent.
-		send_queue.rear = 0;
-		send_queue.front = 0;
-	}
-
-	if (send_queue.itemCount != 0) { send_queue.rear ++; }
-	if (send_queue.rear == (QUEUE_SIZE-1)) { send_queue.rear = 0; } //return rear of queue to start
-
-	if ((send_queue.front == send_queue.rear) && send_queue.itemCount > 1) { //bump the start of the queue up one as oldest values will be overwritten by rollover
-		send_queue.front ++;
-		if (send_queue.front == (QUEUE_SIZE-1)) { send_queue.front = 0; } //return rear of queue to start
-	}
-
-	uint32_t address = 0;
-	if (send_queue.rear > 0) { address += 8 * (send_queue.rear); }
-
-	memcpy(send_queue.buffer + address, &MQTT_char, 1); //flag char data type
-	memcpy(send_queue.buffer + address + 1, &send_queue.next_id, 1); //add queue ID
-	memcpy(send_queue.buffer + address + 2, data, 12); //add data
-	memcpy(send_queue.buffer + address + 14, data_name, 2); //add data_name
-
-	send_queue.next_id++;
-	send_queue.rear++; //add extra as char storage takes up two spaces (16 bytes)
-
-	if (send_queue.itemCount < QUEUE_SIZE) { send_queue.itemCount++; }
-
+void MQTTClass::queue_MQTT_update(char* data, const char* data_name) {
+	if (data == NULL) { return; }
+	uint8_t data_length = 0;
+	while (data_length < 11 && data[data_length] != '\0') { data_length++; }
+	queue_update_record(MQTT_char, data, data_length, data_name);
 }
 
 void MQTTClass::dequeue_MQTT_update() {
 
 	if (send_queue.itemCount > 0) {
-		uint32_t address = 0;
-		memset(dequeued_data, '\0', 16);
-
-		if (send_queue.front > 0) {
-			address += 8 * (send_queue.front);
-		}
-
-		if (send_queue.buffer[address] == MQTT_char) { memcpy(dequeued_data, send_queue.buffer + address, 16); }
-
-		else { memcpy(dequeued_data, send_queue.buffer + address, 8); }
-
-		if (send_queue.itemCount > 0) { 
-			send_queue.itemCount--;
-
-			if (send_queue.buffer[address] == MQTT_char) { send_queue.front += 2; }
-				
-			else { send_queue.front++; }
-		}
-
-		if (send_queue.front >= QUEUE_SIZE) { send_queue.front = 0; }
+		uint16_t address = send_queue.front * 16;
+		memcpy(dequeued_data, send_queue.buffer + address, sizeof(dequeued_data));
+		send_queue.itemCount--;
+		send_queue.front = (send_queue.front + 1) % QUEUE_SIZE;
 
 	}
 
@@ -632,17 +438,8 @@ void MQTTClass::dequeue_MQTT_update() {
 void MQTTClass::queue_peek() {
 
 	if (send_queue.itemCount > 0) {
-		uint32_t address = 0;
-
-		if (send_queue.front > 0) {
-			address += 8 * (send_queue.front);
-		}
-
-		if (send_queue.buffer[address] == MQTT_char) {
-			memcpy(dequeued_data, send_queue.buffer + address, 16);
-		}
-
-		else { memcpy(dequeued_data, send_queue.buffer + address, 8); }
+		uint16_t address = send_queue.front * 16;
+		memcpy(dequeued_data, send_queue.buffer + address, sizeof(dequeued_data));
 	}
 
 	else {
@@ -668,42 +465,29 @@ uint16_t MQTTClass::queue_size() {
 
 	return send_queue.itemCount;
 }
-//Heartbeat reading current dpt 145 values regardless if they have changed or not. This is to ensure that the MQTT server has the most up to date values at all times.
 
-/*
-void MQTTClass::queue_MQTT_TIMED_update(void) {
-    queue_MQTT_update(sensor1.T,    "ta");
-    queue_MQTT_update(sensor1.Tdf,  "td");
-    queue_MQTT_update(sensor1.Tdfa, "tf");
-    queue_MQTT_update(sensor1.H2O,  "h1");
-    queue_MQTT_update(sensor1.P,    "p1");
-    queue_MQTT_update(sensor1.Rhoo, "r1");
-    queue_MQTT_update(sensor2.T,    "tb");
-    queue_MQTT_update(sensor2.P,    "p2");
-    queue_MQTT_update(sensor3.T,    "tc");
-    queue_MQTT_update(sensor3.P,    "p3");
-}
-*/
+
+//Heartbeat reading current dpt 145 values regardless if they have changed or not. This is to ensure that the MQTT server has the most up to date values at all times.
 void MQTTClass::queue_MQTT_TIMED_update(void){
     //SENSOR 1
-    queue_MQTT_update(sensor1.T,    "ta");
-    queue_MQTT_update(sensor1.Tdf,  "td");
-    queue_MQTT_update(sensor1.Tdfa, "tf");
+    queue_MQTT_update(sensor1.T,    "t1");
+    queue_MQTT_update(sensor1.Tdf,  "d1");
+    queue_MQTT_update(sensor1.Tdfa, "f1");
     queue_MQTT_update(sensor1.H2O,  "h1");
     queue_MQTT_update(sensor1.P,    "p1");
     queue_MQTT_update(sensor1.Rhoo, "r1");
-    queue_MQTT_update(sensor1.Pnorm,"pn");
+    queue_MQTT_update(sensor1.Pnorm,"n1");
     //SENSOR 2
-    queue_MQTT_update(sensor2.T,    "tb");
-    queue_MQTT_update(sensor2.Tdf,  "t2");
+    queue_MQTT_update(sensor2.T,    "t2");
+    queue_MQTT_update(sensor2.Tdf,  "d2");
     queue_MQTT_update(sensor2.Tdfa, "f2");
     queue_MQTT_update(sensor2.H2O,  "h2");
     queue_MQTT_update(sensor2.P,    "p2");
     queue_MQTT_update(sensor2.Rhoo, "r2");
     queue_MQTT_update(sensor2.Pnorm,"n2");
     //SENSOR 3
-    queue_MQTT_update(sensor3.T,    "tc");
-    queue_MQTT_update(sensor3.Tdf,  "t3");
+    queue_MQTT_update(sensor3.T,    "t3");
+    queue_MQTT_update(sensor3.Tdf,  "d3");
     queue_MQTT_update(sensor3.Tdfa, "f3");
     queue_MQTT_update(sensor3.H2O,  "h3");
     queue_MQTT_update(sensor3.P,    "p3");

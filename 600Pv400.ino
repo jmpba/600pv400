@@ -184,30 +184,30 @@ void loop() {
 		if (bitRead(HardwareStatus, 2) == 1) { //if sensor 1 enabled
 			MQTT.queue_MQTT_update(sensor1.T, "T1"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor1.Tdf, "D1"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor1.Tdfa, "d1"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor1.H2O, "M1"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor1.Tdfa, "F1"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor1.H2O, "H1"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor1.P, "P1"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor1.Pnorm, "p1"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor1.Pnorm, "N1"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor1.Rhoo, "R1"); //add new value to MQTT send queue
 		}
 
 		if (bitRead(HardwareStatus, 3) == 1) { //if sensor 2 enabled
 			MQTT.queue_MQTT_update(sensor2.T, "T2"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor2.Tdf, "D2"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.Tdfa, "d2"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.H2O, "M2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.Tdfa, "F2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.H2O, "H2"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor2.P, "P2"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor2.Pnorm, "p2"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor2.Pnorm, "N2"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor2.Rhoo, "R2"); //add new value to MQTT send queue
 		}
 
 		if (bitRead(HardwareStatus, 4) == 1) { //if sensor 3 enabled
 			MQTT.queue_MQTT_update(sensor3.T, "T3"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor3.Tdf, "D3"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.Tdfa, "d3"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.H2O, "M3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.Tdfa, "F3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.H2O, "H3"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor3.P, "P3"); //add new value to MQTT send queue
-			MQTT.queue_MQTT_update(sensor3.Pnorm, "p3"); //add new value to MQTT send queue
+			MQTT.queue_MQTT_update(sensor3.Pnorm, "N3"); //add new value to MQTT send queue
 			MQTT.queue_MQTT_update(sensor3.Rhoo, "R3"); //add new value to MQTT send queue
 		}
 
