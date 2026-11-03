@@ -1141,6 +1141,12 @@ memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 
 					if (HL7650.modemreadyfornextcommand == 1 && HL7650.tcp_dataavailable > 0 && (millis() - HL7650.modem_response_timeout) >= 200)
 					{
+						if (debugEN == 1)
+						{
+							DEBUG.print(F(" TCP data available: "));
+							DEBUG.println(HL7650.tcp_dataavailable);
+						}
+
 						sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
 						MQTT.response_expected = true;
 						sendcmd(HL7650.modem_send_buff);

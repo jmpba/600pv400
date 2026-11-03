@@ -1473,9 +1473,11 @@ void HL7650responseClass::ProcessModemResponse()
 		uint8_t tcp_session = atoi(strtok(NULL, ":,"));
 		// HL7650.tcp_dataavailable = atoi(strtok(NULL, ":,"));
 		uint32_t receivedBytes = atoi(strtok(NULL, ":,"));
-		//Sanity check to ensure that the received bytes value is not greater than 1500, which is the maximum size of a TCP packet. If it is, reset it to 0 to avoid incorrect data handling.
-		if (receivedBytes > 1500){receivedBytes = 0;}
-				
+		// Sanity check to ensure that the received bytes value is not greater than 1500, which is the maximum size of a TCP packet. If it is, reset it to 0 to avoid incorrect data handling.
+		if (receivedBytes > 1500)
+		{
+			receivedBytes = 0;
+		}
 
 		if (tcp_session == MQTT.mqtt_tcp_session_id)
 		{
@@ -1483,7 +1485,7 @@ void HL7650responseClass::ProcessModemResponse()
 			// // if the received bytes is greater than the previous value, add the difference to the total available bytes - JM
 			// {
 			// 	HL7650.tcp_dataavailable += receivedBytes;
-			// } 
+			// }
 
 			if (receivedBytes > 0 && receivedBytes <= 1500)
 			// if the received bytes is greater than the previous value, add the difference to the total available bytes - JM
@@ -1528,9 +1530,9 @@ void HL7650responseClass::ProcessModemResponse()
 		uint16_t char_offset = strstr(PROCESSING_buffer, "+KTCP_ACK:") - PROCESSING_buffer;
 
 		strtok(PROCESSING_buffer + char_offset, ":,");
-		char* session_token = strtok(NULL, ",");
-		char* acked_bytes_token = strtok(NULL, ",");
-		char* sent_bytes_token = strtok(NULL, ",");
+		char *session_token = strtok(NULL, ",");
+		char *acked_bytes_token = strtok(NULL, ",");
+		char *sent_bytes_token = strtok(NULL, ",");
 		if (session_token != NULL && acked_bytes_token != NULL)
 		{
 			uint8_t tcp_session = (uint8_t)atoi(session_token);
@@ -1676,8 +1678,8 @@ void HL7650responseClass::ProcessModemResponse()
 
 		if (MQTT.TCPsocketSTATUS == 1)
 		{ // Socket is only defined but not used
-			// if (debugEN == 1) { DEBUG.print(F("Action configured 1")); }
-			// HL7650.ModemCommandStep = TCPdelete; //DELETE THE SESSION IF SOCKET IS CLOSED
+		  // if (debugEN == 1) { DEBUG.print(F("Action configured 1")); }
+		  // HL7650.ModemCommandStep = TCPdelete; //DELETE THE SESSION IF SOCKET IS CLOSED
 		}
 
 		if (MQTT.TCPsocketSTATUS == 2)
@@ -1700,9 +1702,9 @@ void HL7650responseClass::ProcessModemResponse()
 
 		if (MQTT.TCPsocketSTATUS == 5)
 		{ // Socket is closed
-			// HL7650.ModemCommandStep = 820; //DELETE THE SESSION IF SOCKET IS CLOSED
-			// if (debugEN == 1) { DEBUG.print(F("Action configured 5")); }
-			// HL7650.ModemCommandStep = ATKTCPCFG;
+		  // HL7650.ModemCommandStep = 820; //DELETE THE SESSION IF SOCKET IS CLOSED
+		  // if (debugEN == 1) { DEBUG.print(F("Action configured 5")); }
+		  // HL7650.ModemCommandStep = ATKTCPCFG;
 		}
 
 		HL7650.modemresponsereceived = 1; // proceed to next command.
