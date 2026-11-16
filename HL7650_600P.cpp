@@ -59,6 +59,7 @@ void HL7650Class::modem_powerOFF(void) {
 
 	modem_ready = 0;
 	networkregistrationstatus = 0;
+	lteRegistrationStatusKnown = false;
 	modem_initial_response_seen = 0;
 	ModemCommandStep = 0;
 	modemfirstrun = 0;
@@ -82,6 +83,7 @@ void HL7650Class::modem_reset(void) {
 	ModemCommandStep = 0;
 	reset_required = 0;
 	networkregistrationstatus = 0;
+	lteRegistrationStatusKnown = false;
 	modem_initial_response_seen = 0;
 	modemfirstrun = 0;
 	modemRESETactive = 1;
@@ -90,7 +92,7 @@ void HL7650Class::modem_reset(void) {
 
 void HL7650Class::read() {
 
-	if (modem_ready == 1 && (networkregistrationstatus == 1 || networkregistrationstatus == 5)) { //only if registered or registered roaming and modem booted.
+	if (modem_ready == 1) {
 		if (modemfirstrun == 0) {
 			ModemCommandStep = 1; //initiate config check
 			modemfirstrun++;
@@ -99,6 +101,7 @@ void HL7650Class::read() {
 
 	ModemReady();
 	HL7650command.process();
+	bool force_data_processing = false;
 
 	while (modemUART.available() > 0) {  // while there is unread data in the ring buffer
 
@@ -170,6 +173,17 @@ void HL7650Class::read() {
 		}
 
 		if (DataMode == true) {
+			// Avoid writing past the buffer; process the buffered bytes and drop this extra byte.
+			if (data_count >= sizeof(Modem_Data_Buffer)) {
+				modemUART.read();
+				timeout_read = millis();
+				force_data_processing = true;
+				if (debugEN == 1) {
+					DEBUG.println(F("modem data buffer full; discarding byte"));
+				}
+				break;
+			}
+
 			Modem_Data_Buffer[data_count] = modemUART.read();
 
 			timeout_read = millis();;
@@ -259,6 +273,8 @@ void HL7650Class::read() {
 						DEBUG.println(F("DATAMODE OFF!"));
 					}
 				}
+				// A mismatched terminator byte must not leave the matcher stuck at its last state.
+				else { eofSTAT = 0; }
 				break;
 
 			}
@@ -287,7 +303,9 @@ void HL7650Class::read() {
 
 	}
 
-	if ((recv_count > 0 || data_count > 0) && (millis() - timeout_read) >= 20) {
+	// Overflow handling forces processing without waiting for the normal idle timeout.
+	if ((recv_count > 0 || data_count > 0) &&
+		(force_data_processing || (millis() - timeout_read) >= 20)) {
 
 		processDATA();
 		recv_count = 0;
@@ -299,6 +317,11 @@ void HL7650Class::read() {
 }
 
 void HL7650Class::processDATA() {
+	// Keep downstream length calculations within the receive buffer.
+	if (data_count > sizeof(Modem_Data_Buffer))
+	{
+		data_count = sizeof(Modem_Data_Buffer);
+	}
 
 	if (data_count > 0) {
 

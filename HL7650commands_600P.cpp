@@ -30,7 +30,15 @@ void HL7650commandClass::process(void)
 				// modem_initial_response_seen = 1;
 			}
 
-			HL7650.modemreadyfornextcommand = 1;
+			if (HL7650.ModemCommandStep == ATCEREG ||
+				HL7650.ModemCommandStep == ATCEREGmodify)
+			{
+				HL7650command.complete(ATW0);
+			}
+			else
+			{
+				HL7650.modemreadyfornextcommand = 1;
+			}
 			HL7650.modemresponsereceived = 0;
 		}
 
@@ -139,7 +147,7 @@ void HL7650commandClass::process(void)
 
 			if (HL7650.modemresponsereceived == 1)
 			{
-				HL7650command.complete(ATW0);
+				HL7650command.complete(ATCEREG);
 			}
 			if (HL7650.modemresponsereceived == 2)
 			{
@@ -157,6 +165,46 @@ void HL7650commandClass::process(void)
 			if (HL7650.modemresponsereceived == 1)
 			{
 				HL7650command.complete(MODEMRESET);
+			}
+
+			break;
+
+		case ATCEREG:
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sendcmd("AT+CEREG?");
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(ATW0);
+			}
+			if (HL7650.modemresponsereceived == 2)
+			{
+				HL7650command.complete(ATCEREGmodify);
+			}
+			if (HL7650.modemresponsereceived == 3)
+			{
+				HL7650command.complete(ATW0);
+			}
+
+			break;
+
+		case ATCEREGmodify:
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sendcmd("AT+CEREG=2");
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(ATW0);
+			}
+			if (HL7650.modemresponsereceived == 3)
+			{
+				HL7650command.complete(ATW0);
 			}
 
 			break;
@@ -876,6 +924,7 @@ void HL7650commandClass::process(void)
 						char msg_payload_buf[Modem_buffer_size] = {'\0'};
 						char recovered_name[3] = {'\0'};
 						size_t used = 0;
+						bool payload_format_failed = false;
 
 						DS1338.epoch = DS1338.readRTC(RTC0);
 
@@ -899,6 +948,12 @@ void HL7650commandClass::process(void)
 
 						while (MQTT.queue_size() > 0)
 						{
+							// Keep 64 bytes for the largest supported field, including a formatted float.
+							if (sizeof(msg_payload_buf) - used < 64)
+							{
+								break;
+							}
+
 							MQTT.dequeue_MQTT_update();
 							memcpy(recovered_name, MQTT.dequeued_data + 14, 2);
 							recovered_name[2] = '\0';
@@ -922,6 +977,7 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
@@ -946,6 +1002,7 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
@@ -965,6 +1022,7 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
@@ -982,6 +1040,7 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
@@ -999,6 +1058,7 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
@@ -1016,10 +1076,21 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
 							}
+						}
+
+						if (payload_format_failed)
+						{
+							// Never send a truncated payload if formatting unexpectedly fails.
+							if (debugEN == 1) { DEBUG.println(F("MQTT update does not fit payload buffer")); }
+							MQTT.publish_pending = false;
+							MQTT.send_attempt = 0;
+							HL7650command.complete(MQTTpublish);
+							break;
 						}
 
 						if (used + 2 >= sizeof(msg_payload_buf))

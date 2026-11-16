@@ -21,8 +21,16 @@ void HL7650responseClass::ProcessModemResponse()
 	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	if (strstr(HL7650.Modem_buffer, "ERROR\r"))
 	{
-
-		HL7650.modemreadyfornextcommand = 1;
+		if (HL7650.ModemCommandStep == ATCEREG ||
+			HL7650.ModemCommandStep == ATCEREGmodify)
+		{
+			HL7650.modemreadyfornextcommand = 0;
+			HL7650.modemresponsereceived = 3;
+		}
+		else
+		{
+			HL7650.modemreadyfornextcommand = 1;
+		}
 	}
 
 	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -50,6 +58,10 @@ void HL7650responseClass::ProcessModemResponse()
 		{
 			HL7650.modemresponsereceived = 1;
 		} // ATCREG
+		if (HL7650.ModemCommandStep == ATCEREGmodify)
+		{
+			HL7650.modemresponsereceived = 1;
+		}
 		if (HL7650.ModemCommandStep == ATW0)
 		{
 			HL7650.modemresponsereceived = 1;
@@ -122,6 +134,75 @@ void HL7650responseClass::ProcessModemResponse()
 	}
 
 	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	if (strstr(HL7650.Modem_buffer, "+CEREG:") != NULL)
+	{
+		strncpy(PROCESSING_buffer, HL7650.Modem_buffer, Modem_buffer_size - 1);
+		PROCESSING_buffer[Modem_buffer_size - 1] = '\0';
+
+		char *registration = strstr(PROCESSING_buffer, "+CEREG:");
+		char *next_registration = NULL;
+		while (registration != NULL &&
+			   (next_registration = strstr(registration + 1, "+CEREG:")) != NULL)
+		{
+			registration = next_registration;
+		}
+		char *value = registration != NULL ? strchr(registration, ':') : NULL;
+		if (value != NULL)
+		{
+			bool query_response = strstr(PROCESSING_buffer, "OK\r") != NULL &&
+								  HL7650.ModemCommandStep == ATCEREG;
+			char *token = strtok(value + 1, ",\"\r\n \t");
+			if (token != NULL)
+			{
+				long first_value = strtol(token, NULL, 10);
+				long mode = query_response ? first_value : -1;
+				if (query_response)
+				{
+					token = strtok(NULL, ",\"\r\n \t");
+				}
+
+				if (token != NULL)
+				{
+					char *status_end = NULL;
+					long status = strtol(token, &status_end, 10);
+					if (status_end != token && status >= 0 && status <= 255)
+					{
+						HL7650.lteRegistrationStatusKnown = true;
+						HL7650.networkregistrationstatus = (uint8_t)status;
+
+						if (status == 1 || status == 5)
+						{
+							char *tac = strtok(NULL, ",\"\r\n \t");
+							char *cell_id = strtok(NULL, ",\"\r\n \t");
+							char *act = strtok(NULL, ",\"\r\n \t");
+							if (tac != NULL && cell_id != NULL)
+							{
+								HL7650.networklocationcode = strtol(tac, NULL, 16);
+								HL7650.networkcellid = strtol(cell_id, NULL, 16);
+							}
+							if (act != NULL)
+							{
+								long access_technology = strtol(act, NULL, 10);
+								if (access_technology >= 0 && access_technology <= 9)
+								{
+									HL7650.networkAcT = (uint16_t)access_technology;
+								}
+							}
+						}
+
+						printnetworkstatus();
+
+						if (query_response)
+						{
+							HL7650.modemresponsereceived = mode == 2 ? 1 : 2;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	if (strstr(HL7650.Modem_buffer, "+CREG:") != NULL)
 	{
 		if (debugEN == 1)
@@ -165,13 +246,17 @@ void HL7650responseClass::ProcessModemResponse()
 			strtok(PROCESSING_buffer + location[noofmessages - 1], ":");
 			uint8_t cgregmode = 0;
 			cgregmode = atoi(strtok(NULL, ":,"));
-			HL7650.networkregistrationstatus = atoi(strtok(NULL, ":,"));
+			uint8_t registration_status = atoi(strtok(NULL, ":,"));
 
-			if (HL7650.networkregistrationstatus == 1 || HL7650.networkregistrationstatus == 5)
+			if (registration_status == 1 || registration_status == 5)
 			{ // only if registered or registered roaming.
 				HL7650.networklocationcode = strtol(strtok(NULL, "\","), NULL, 16);
 				HL7650.networkcellid = strtol(strtok(NULL, "\","), NULL, 16);
 				HL7650.networkAcT = atoi(strtok(NULL, ":,"));
+			}
+			if (!HL7650.lteRegistrationStatusKnown)
+			{
+				HL7650.networkregistrationstatus = registration_status;
 			}
 
 			if (cgregmode == 2)
@@ -214,7 +299,8 @@ void HL7650responseClass::ProcessModemResponse()
 				HL7650.networkAcT = atoi(strtok(NULL, ":,"));
 			}
 
-			else if (HL7650.networkregistrationstatus == 1 || HL7650.networkregistrationstatus == 5)
+			else if (!HL7650.lteRegistrationStatusKnown &&
+					 (HL7650.networkregistrationstatus == 1 || HL7650.networkregistrationstatus == 5))
 			{ // if modem was previously registered to the network
 				if (debugEN == 1)
 				{
@@ -228,8 +314,11 @@ void HL7650responseClass::ProcessModemResponse()
 			// }
 
 			// if (networkregistrationstatus == 0 && ModemCommandStep > 800) { poweroff_modem(); }
-			HL7650.networkregistrationstatus = stat;
-			printnetworkstatus();
+			if (!HL7650.lteRegistrationStatusKnown)
+			{
+				HL7650.networkregistrationstatus = stat;
+				printnetworkstatus();
+			}
 		}
 	}
 
@@ -1755,7 +1844,16 @@ void HL7650responseClass::ProcessModemResponse()
 		HL7650.ERROR_timeout = millis();
 		HL7650.ERROR = true;
 
-		HL7650command.complete(TCPdisconnect);
+		if (HL7650.ModemCommandStep == ATCEREG ||
+			HL7650.ModemCommandStep == ATCEREGmodify)
+		{
+			HL7650.modemreadyfornextcommand = 0;
+			HL7650.modemresponsereceived = 3;
+		}
+		else
+		{
+			HL7650command.complete(TCPdisconnect);
+		}
 	}
 
 	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1856,6 +1954,26 @@ void HL7650responseClass::printnetworkstatus()
 		{
 			DEBUG.println(F("Registered, roaming."));
 		}
+		if (HL7650.networkregistrationstatus == 6)
+		{
+			DEBUG.println(F("Not registered for packet service."));
+		}
+		if (HL7650.networkregistrationstatus == 7)
+		{
+			DEBUG.println(F("Registered for SMS only."));
+		}
+		if (HL7650.networkregistrationstatus == 8)
+		{
+			DEBUG.println(F("Emergency bearer services only."));
+		}
+		if (HL7650.networkregistrationstatus == 9)
+		{
+			DEBUG.println(F("Registered, CSFB not preferred."));
+		}
+		if (HL7650.networkregistrationstatus == 10)
+		{
+			DEBUG.println(F("Registered, limited service."));
+		}
 
 		if (HL7650.networkregistrationstatus == 1 || HL7650.networkregistrationstatus == 5)
 		{ // only if registered or registered roaming.
@@ -1866,6 +1984,10 @@ void HL7650responseClass::printnetworkstatus()
 			if (HL7650.networkAcT == 7)
 			{
 				DEBUG.println(F(" E-UTRAN"));
+			}
+			if (HL7650.networkAcT == 8)
+			{
+				DEBUG.println(F(" E-UTRAN (LTE Cat M1)"));
 			}
 			if (HL7650.networkAcT == 9)
 			{
