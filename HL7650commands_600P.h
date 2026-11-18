@@ -17,7 +17,9 @@
 #define ATKSREPmodify 4 
 #define ATCREG 5
 #define ATCREGmodify 6
-#define ATW0 7
+#define ATCEREG 7
+#define ATCEREGmodify 8
+#define ATW0 9
 #define ATWMANTSEL 10
 #define ATWMANTSEL_modify 11
 #define ATCOPS 20
@@ -86,11 +88,10 @@ class HL7650commandClass
 	void process(void);
 	void printMQTTresponse(void);
 	uint8_t sendcmd(const char* cmd);
-	void senddata(uint8_t* sendingbuffer, uint16_t message_len);
+	uint8_t senddata(uint8_t* sendingbuffer, uint16_t message_len);
 	void complete(uint16_t nextstep);
 };
 
 extern HL7650commandClass HL7650command;
 
 #endif
-

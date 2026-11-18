@@ -6,6 +6,27 @@
 
 HL7650commandClass HL7650command;
 
+static const char *modem_timeout_phase(uint16_t command_step)
+{
+	switch (command_step)
+	{
+	case MQTTconnect:
+	case MQTTpublish:
+	case MQTTdisconnect:
+		return "waiting for KTCPSND CONNECT prompt";
+	case MQTTconnectSEND:
+	case MQTTpublishSEND:
+	case MQTTdisconnectSEND:
+		return "waiting for KTCPSND final response";
+	case MQTTconnectRECV:
+	case MQTTpublishRECV:
+	case MQTTdisconnectRECV:
+		return "waiting for KTCPRCV/MQTT response";
+	default:
+		return "waiting for AT response";
+	}
+}
+
 void HL7650commandClass::init()
 {
 }
@@ -20,18 +41,52 @@ void HL7650commandClass::process(void)
 		{
 			if (debugEN == 1)
 			{
-				DEBUG.print(F("MODEM RESPONSE TIMEOUT\r\n"));
+				DEBUG.print(F("MODEM RESPONSE TIMEOUT state="));
+				DEBUG.print(HL7650.ModemCommandStep);
+				DEBUG.print(F(" phase="));
+				DEBUG.print(modem_timeout_phase(HL7650.ModemCommandStep));
+				DEBUG.print(F(" CTS="));
+				DEBUG.print(digitalRead(MDM_CTS) == LOW ? F("LOW") : F("HIGH"));
+				DEBUG.print(F(" command="));
+				DEBUG.println(HL7650.modem_send_buff);
 			}
 
-			if (HL7650.modem_initial_response_seen == 0)
-			{ // initiate URC report setting change if modem has not been configured for this.
-				HL7650.ModemCommandStep = 1;
-				HL7650.modem_response_timeout = millis(); // reset timeout counter
-				// modem_initial_response_seen = 1;
+			if ((HL7650.ModemCommandStep >= MQTTconnect &&
+				 HL7650.ModemCommandStep <= MQTTconnectRECV) ||
+				(HL7650.ModemCommandStep >= MQTTpublish &&
+				 HL7650.ModemCommandStep <= MQTTpublishRESULT) ||
+				(HL7650.ModemCommandStep >= MQTTdisconnect &&
+				 HL7650.ModemCommandStep <= MQTTdisconnectRECV))
+			{
+				// A timed-out MQTT send may leave the modem in data mode; reset instead of
+				// retrying payload bytes without a fresh KTCPSND CONNECT prompt.
+				MQTT.response_expected = false;
+				MQTT.mqtt_rx_length = 0;
+				HL7650.command_response_expected = false;
+				HL7650.tcp_dataavailable = 0;
+				HL7650.modemresponsereceived = 0;
+				HL7650.modemreadyfornextcommand = 0;
+				HL7650.modem_reset();
 			}
+			else
+			{
+				if (HL7650.modem_initial_response_seen == 0)
+				{ // initiate URC report setting change if modem has not been configured for this.
+					HL7650.ModemCommandStep = 1;
+					HL7650.modem_response_timeout = millis(); // reset timeout counter
+				}
 
-			HL7650.modemreadyfornextcommand = 1;
-			HL7650.modemresponsereceived = 0;
+				if (HL7650.ModemCommandStep == ATCEREG ||
+					HL7650.ModemCommandStep == ATCEREGmodify)
+				{
+					HL7650command.complete(ATW0);
+				}
+				else
+				{
+					HL7650.modemreadyfornextcommand = 1;
+				}
+				HL7650.modemresponsereceived = 0;
+			}
 		}
 
 		if (millis() < HL7650.modem_response_timeout)
@@ -139,7 +194,7 @@ void HL7650commandClass::process(void)
 
 			if (HL7650.modemresponsereceived == 1)
 			{
-				HL7650command.complete(ATW0);
+				HL7650command.complete(ATCEREG);
 			}
 			if (HL7650.modemresponsereceived == 2)
 			{
@@ -157,6 +212,46 @@ void HL7650commandClass::process(void)
 			if (HL7650.modemresponsereceived == 1)
 			{
 				HL7650command.complete(MODEMRESET);
+			}
+
+			break;
+
+		case ATCEREG:
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sendcmd("AT+CEREG?");
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(ATW0);
+			}
+			if (HL7650.modemresponsereceived == 2)
+			{
+				HL7650command.complete(ATCEREGmodify);
+			}
+			if (HL7650.modemresponsereceived == 3)
+			{
+				HL7650command.complete(ATW0);
+			}
+
+			break;
+
+		case ATCEREGmodify:
+
+			if (HL7650.modemreadyfornextcommand == 1)
+			{
+				sendcmd("AT+CEREG=2");
+			}
+
+			if (HL7650.modemresponsereceived == 1)
+			{
+				HL7650command.complete(ATW0);
+			}
+			if (HL7650.modemresponsereceived == 3)
+			{
+				HL7650command.complete(ATW0);
 			}
 
 			break;
@@ -734,7 +829,10 @@ void HL7650commandClass::process(void)
 
 			if (HL7650.modemreadyfornextcommand == 1)
 			{
-				senddata((uint8_t *)MQTT.send_buff, msglen);
+				if (!senddata((uint8_t *)MQTT.send_buff, msglen))
+				{
+					break;
+				}
 			}
 
 			if (HL7650.modemresponsereceived == 1)
@@ -752,14 +850,24 @@ void HL7650commandClass::process(void)
 				MQTT.response_expected = true;
 				sendcmd(HL7650.modem_send_buff);
 			}
-//COMFIRM THE RESPONSE IS A CONACK AND RETURN CODE IS ACCEPTED BEFORE PROCEEDING TO NEXT STEP - JM 28.7
-			if (response.ack_type == CONACK && response.return_code == ACCEPTED) {
-				if (MQTT.queue_isEmpty() == 0) { HL7650command.complete(MQTTpublish); }
-				else { HL7650command.complete(ATKCGPADDR); }
-			}
-			else if (HL7650.modemresponsereceived == 101) {
+			// CONNACK can arrive before KTCPRCV has finished; wait for its TCP ACK
+			// before starting another AT command on the modem.
+			if (HL7650.modemresponsereceived == 101)
+			{
 				HL7650.modemresponsereceived = 0;
 				HL7650.modemreadyfornextcommand = 1;
+
+				if (response.ack_type == CONACK && response.return_code == ACCEPTED)
+				{
+					if (MQTT.queue_isEmpty() == 0)
+					{
+						HL7650command.complete(MQTTpublish);
+					}
+					else
+					{
+						HL7650command.complete(ATKCGPADDR);
+					}
+				}
 			}
 			
 				
@@ -876,6 +984,7 @@ void HL7650commandClass::process(void)
 						char msg_payload_buf[Modem_buffer_size] = {'\0'};
 						char recovered_name[3] = {'\0'};
 						size_t used = 0;
+						bool payload_format_failed = false;
 
 						DS1338.epoch = DS1338.readRTC(RTC0);
 
@@ -899,6 +1008,12 @@ void HL7650commandClass::process(void)
 
 						while (MQTT.queue_size() > 0)
 						{
+							// Keep 64 bytes for the largest supported field, including a formatted float.
+							if (sizeof(msg_payload_buf) - used < 64)
+							{
+								break;
+							}
+
 							MQTT.dequeue_MQTT_update();
 							memcpy(recovered_name, MQTT.dequeued_data + 14, 2);
 							recovered_name[2] = '\0';
@@ -922,6 +1037,7 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
@@ -946,6 +1062,7 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
@@ -965,6 +1082,7 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
@@ -982,6 +1100,7 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
@@ -999,6 +1118,7 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
@@ -1016,10 +1136,21 @@ void HL7650commandClass::process(void)
 
 								if (n < 0 || (size_t)n >= (sizeof(msg_payload_buf) - used))
 								{
+									payload_format_failed = true;
 									break;
 								}
 								used += (size_t)n;
 							}
+						}
+
+						if (payload_format_failed)
+						{
+							// Never send a truncated payload if formatting unexpectedly fails.
+							if (debugEN == 1) { DEBUG.println(F("MQTT update does not fit payload buffer")); }
+							MQTT.publish_pending = false;
+							MQTT.send_attempt = 0;
+							HL7650command.complete(MQTTpublish);
+							break;
 						}
 
 						if (used + 2 >= sizeof(msg_payload_buf))
@@ -1044,7 +1175,6 @@ response.message_id = 0;
 response.return_code = NOT_AUTHORIZED;
 
 uint8_t duplicate = MQTT.send_attempt == 0 ? 0 : 1;
-MQTT.send_attempt++;
 size_t eof_length = strlen(HL7650.MODEM_EOF_PATTERN);
 int packet_length = MQTT.get_mqtt_pub_message(
     MQTT.send_buff,
@@ -1083,9 +1213,11 @@ memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 						*/
 						// ENDTEXTFORMATTING;
 						sprintf(HL7650.modem_send_buff, "AT+KTCPSND=%d,%d", MQTT.mqtt_tcp_session_id, msglen);
-						sendcmd(HL7650.modem_send_buff);
-						msglen += 16; // ADD SIZE OF EOF MESSAGE
-												MQTT.publish_sent_at = millis();
+						if (sendcmd(HL7650.modem_send_buff))
+						{
+							msglen += 16; // ADD SIZE OF EOF MESSAGE
+							MQTT.publish_sent_at = millis();
+						}
 						// printf("Publish message ID: %x\r\n", MQTT.message_id);
 						// printf("Publish message ID: %x\r\n", MQTT_published_ID);
 						// HL7650.ModemCommandStep++;
@@ -1102,7 +1234,10 @@ memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 
 					if (HL7650.modemreadyfornextcommand == 1)
 					{
-						senddata((uint8_t *)MQTT.send_buff, msglen);
+						if (!senddata((uint8_t *)MQTT.send_buff, msglen))
+						{
+							break;
+						}
 					}
 
 					if (HL7650.modemresponsereceived == 1)
@@ -1125,12 +1260,24 @@ memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 						DEBUG.print(F(" expected ID="));
 						DEBUG.println(MQTT.published_ID);
 					}
-					if (response.ack_type == PUBACK && response.message_id == MQTT.published_ID)
+
+					// Finish the modem receive transaction before acting on its MQTT response.
+					if (HL7650.modemresponsereceived == 101)
+					{
+						HL7650.modemresponsereceived = 0;
+						HL7650.modemreadyfornextcommand = 1;
+					}
+
+					if (HL7650.modemreadyfornextcommand == 1 &&
+						response.ack_type == PUBACK &&
+						response.message_id == MQTT.published_ID)
 					{
 						HL7650command.complete(MQTTpublishRESULT);
 						break;
 					}
-					if ((uint32_t)(millis() - MQTT.publish_sent_at) >= 15000)
+					if (HL7650.modemreadyfornextcommand == 1 &&
+						HL7650.tcp_dataavailable == 0 &&
+						(uint32_t)(millis() - MQTT.publish_sent_at) >= 15000)
 					{
 						response.ack_type = RESET;
 						response.message_id = 0;
@@ -1150,13 +1297,6 @@ memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 						sprintf(HL7650.modem_send_buff, "AT+KTCPRCV=%d,%lu", MQTT.mqtt_tcp_session_id, HL7650.tcp_dataavailable);
 						MQTT.response_expected = true;
 						sendcmd(HL7650.modem_send_buff);
-					}
-
-					if (HL7650.modemresponsereceived == 101 &&
-						!(response.ack_type == PUBACK && response.message_id == MQTT.published_ID))
-					{
-						HL7650.modemresponsereceived = 0;
-						HL7650.modemreadyfornextcommand = 1;
 					}
 
 					break;
@@ -1220,7 +1360,10 @@ memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 
 					if (HL7650.modemreadyfornextcommand == 1)
 					{
-						senddata((uint8_t *)MQTT.send_buff, msglen);
+						if (!senddata((uint8_t *)MQTT.send_buff, msglen))
+						{
+							break;
+						}
 					}
 
 					if (HL7650.modemresponsereceived == 1)
@@ -1328,7 +1471,8 @@ memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 	void HL7650commandClass::printMQTTresponse(void)
 	{
 
-		if (debugEN == 1)
+		// NOT_AUTHORIZED is also the reset/default value; only report a refusal for a parsed CONNACK.
+		if (debugEN == 1 && response.ack_type == CONACK)
 		{
 
 			if (response.return_code == ACCEPTED)
@@ -1384,11 +1528,19 @@ memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 
 		else
 		{
+			if (debugEN == 1)
+			{
+				DEBUG.print(F("AT command not sent; modemready="));
+				DEBUG.print(HL7650.modemreadyfornextcommand);
+				DEBUG.print(F(" CTS="));
+				DEBUG.print(digitalRead(MDM_CTS) == LOW ? F("LOW") : F("HIGH"));
+				DEBUG.println();
+			}
 			return 0;
 		}
 	}
 
-	void HL7650commandClass::senddata(uint8_t *sendingbuffer, uint16_t message_len)
+	uint8_t HL7650commandClass::senddata(uint8_t *sendingbuffer, uint16_t message_len)
 	{
 
 		if (digitalRead(MDM_CTS) == LOW)
@@ -1418,10 +1570,21 @@ memcpy(MQTT.send_buff + msglen, HL7650.MODEM_EOF_PATTERN, eof_length);
 				modemUART.write(sendingbuffer[i]);
 			}
 
+			// A publish is a retransmission only after its payload was actually sent.
+			if (HL7650.ModemCommandStep == MQTTpublishSEND)
+			{
+				MQTT.send_attempt++;
+			}
+
 			// if (debugEN == 1) { DEBUG.println();DEBUG.println(); }
+			return 1;
 		}
 
-		// else if (debugEN == 1) { DEBUG.println(F("DATA SEND FAIL. CTS NOT LOW")); }
+		if (debugEN == 1)
+		{
+			DEBUG.println(F("Data bytes not sent; waiting for CTS LOW"));
+		}
+		return 0;
 	}
 
 	void HL7650commandClass::complete(uint16_t nextstep)

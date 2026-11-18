@@ -90,8 +90,10 @@ void serialcommandsClass::scan() {
 			DEBUG.println(HL7650.ip_address);
 
 			DEBUG.print(F("Network Status:		"));
-			DEBUG.print(HL7650.netStatus[HL7650.networkregistrationstatus]);
-			if (HL7650.networkregistrationstatus == 1 || HL7650.networkregistrationstatus == 5) { DEBUG.println(HL7650.netType[HL7650.networkAcT]); }
+			if (HL7650.networkregistrationstatus < 11) { DEBUG.print(HL7650.netStatus[HL7650.networkregistrationstatus]); }
+			else { DEBUG.print(F("Unknown registration status")); }
+			if ((HL7650.networkregistrationstatus == 1 || HL7650.networkregistrationstatus == 5) &&
+				HL7650.networkAcT < 10) { DEBUG.println(HL7650.netType[HL7650.networkAcT]); }
 			else { DEBUG.println(); }
 
 			DEBUG.println();
@@ -384,5 +386,4 @@ void serialcommandsClass::scan() {
 	}
 
 }
-
 

@@ -56,10 +56,11 @@ class HL7650Class
 	 const char* netBands[17] = { "NOT AVAILABLE", "GSM 900 MHz", "DCS 1800 MHz","UTMS Band I (2100 MHz)","UTMS Band II (1900 MHz)","UTMS Band V (850 MHz)","UTMS Band VIII (900 MHz)","LTE Band 2 (1900 MHz)"
 								,"LTE Band 3 (1800 MHz)","LTE Band 4 (1700 MHz)","LTE Band 5 (850 MHz)","LTE Band 13 (700 MHz)","LTE Band 17 (700 MHz)","LTE Band 28 (700 MHz)","LTE Band 8 (900 MHz)","LTE Band 20 (800 MHz)","LTE Band 12 (700 MHz)" };
 
-	 const char* netStatus[6] = { "Not registered to network, NOT searching!","Registered to network, Home network - ","Not registered to network, searching..."
-								,"Network registration denied","Unknown network registration error","Registered to network, Roaming - " };
+	 const char* netStatus[11] = { "Not registered to network, NOT searching!","Registered to network, Home network - ","Not registered to network, searching..."
+								,"Network registration denied","Unknown network registration error","Registered to network, Roaming - ",
+								"Not registered for packet service","Registered for SMS only","Emergency bearer services only","Registered, CSFB not preferred","Registered, limited service" };
 
-	 const char* netType[8] = { "GSM","","UTRAN","GSM with EGPRS","UTRAN with HSDPA","UTRAN with HSUPA","UTRAN with HSDPA and HSUPA","E-UTRAN" };
+	 const char* netType[10] = { "GSM","","UTRAN","GSM with EGPRS","UTRAN with HSDPA","UTRAN with HSUPA","UTRAN with HSDPA and HSUPA","E-UTRAN","E-UTRAN (LTE Cat M1)","E-UTRAN (NB-S1 mode)" };
 
 	 // APN parameters 
 	 char APN_name[APN_BUFF_SIZE] = { '\0' };
@@ -106,6 +107,7 @@ class HL7650Class
 	 bool command_response_expected = false;
 	 char Modem_buffer[Modem_buffer_size] = { '\0' };
 	 uint8_t networkregistrationstatus = 0;
+	 bool lteRegistrationStatusKnown = false;
 	 uint32_t networklocationcode = 0;
 	 uint32_t networkcellid = 0;
 	 uint16_t networkAcT = 0;
@@ -126,4 +128,3 @@ class HL7650Class
 extern HL7650Class HL7650;
 
 #endif
-
