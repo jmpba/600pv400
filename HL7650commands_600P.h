@@ -88,7 +88,7 @@ class HL7650commandClass
 	void process(void);
 	void printMQTTresponse(void);
 	uint8_t sendcmd(const char* cmd);
-	void senddata(uint8_t* sendingbuffer, uint16_t message_len);
+	uint8_t senddata(uint8_t* sendingbuffer, uint16_t message_len);
 	void complete(uint16_t nextstep);
 };
 
