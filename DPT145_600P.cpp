@@ -92,7 +92,7 @@ void sensorClass::read()
 				combinedregister = roundf(combinedregister * 100) / 100; //round to 2dp
 				if (combinedregister != sensor1.Tdfa) { //if the value changes then update
 					sensor1.Tdfa = combinedregister; 
-					MQTT.queue_MQTT_update(sensor1.Tdfa, "tf"); //add new value to MQTT send queue - DEWPOINT ATM sensor 1
+					MQTT.queue_MQTT_update(sensor1.Tdfa, "f1"); //add new value to MQTT send queue - DEWPOINT ATM sensor 1
 				} 
 
 				register2 = modbusRTU.getResponseBuffer(0x11); //Moisture

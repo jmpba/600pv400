@@ -26,6 +26,38 @@ static const char *modem_timeout_phase(uint16_t command_step)
 		return "waiting for AT response";
 	}
 }
+// Determining if the recorded mqtt telemetry  is a normal record or snapshot record. Telemetry records are sent on change, while snapshot records are sent every 5 minutes. The resource type is determined by the 15th byte of the record, and the sensor type is determined by the 16th byte of the record. The resource type can be one of the following: t, d, f, h, p, n, r. The sensor type can be one of the following: 1, 2, 3. If the resource type is uppercase, then it is a snapshot record. If the resource type is lowercase, then it is a telemetry record.
+static bool is_dpt_telemetry_key(const uint8_t *record, bool &is_snapshot)
+{
+	char resource = (char)record[14];
+	char sensor = (char)record[15];
+	if (sensor < '1' || sensor > '3')
+	{
+		return false;
+	}
+
+	switch (resource)
+	{
+	case 't':
+	case 'T':
+	case 'd':
+	case 'D':
+	case 'f':
+	case 'F':
+	case 'h':
+	case 'H':
+	case 'p':
+	case 'P':
+	case 'n':
+	case 'N':
+	case 'r':
+	case 'R':
+		is_snapshot = resource >= 'A' && resource <= 'Z';
+		return true;
+	default:
+		return false;
+	}
+}
 
 void HL7650commandClass::init()
 {
@@ -985,6 +1017,8 @@ void HL7650commandClass::process(void)
 						char recovered_name[3] = {'\0'};
 						size_t used = 0;
 						bool payload_format_failed = false;
+						bool has_dpt_telemetry = false;
+						bool snapshot_payload = false;
 
 						DS1338.epoch = DS1338.readRTC(RTC0);
 
@@ -1014,7 +1048,21 @@ void HL7650commandClass::process(void)
 								break;
 							}
 
+							MQTT.queue_peek();
+							bool next_is_snapshot = false;
+							bool next_is_dpt_telemetry = is_dpt_telemetry_key(MQTT.dequeued_data, next_is_snapshot);
+							if (next_is_dpt_telemetry && has_dpt_telemetry && next_is_snapshot != snapshot_payload)
+							{
+								break;
+							}
+
 							MQTT.dequeue_MQTT_update();
+							if (next_is_dpt_telemetry && !has_dpt_telemetry)
+							{
+								has_dpt_telemetry = true;
+								snapshot_payload = next_is_snapshot;
+							}
+
 							memcpy(recovered_name, MQTT.dequeued_data + 14, 2);
 							recovered_name[2] = '\0';
 
